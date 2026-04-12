@@ -25,12 +25,13 @@ export default function SecurityDashboard() {
 
   useEffect(() => {
     // Fetch initial stats
-    fetch('http://localhost:3000/stats')
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${apiUrl}/stats`)
       .then(res => res.json())
       .then(setStats);
 
     // Connect to SSE for real-time events
-    const eventSource = new EventSource('http://localhost:3000/events');
+    const eventSource = new EventSource(`${apiUrl}/events`);
 
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data);

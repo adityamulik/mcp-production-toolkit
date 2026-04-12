@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import { setupAuth, authenticateJWT } from './auth/oauth-server.js';
 import { policyEngine } from './policy/engine.js';
 import { promptFilter } from './security/prompt-filter.js';
@@ -24,6 +25,7 @@ import {
 import { requestLogger, RequestLog } from './observability/request-logger.js';
 
 const app = express();
+const SECRET = process.env.GATEWAY_JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key';
 
 app.use(cors());
 app.use(express.json());
@@ -69,6 +71,18 @@ app.get('/events', (req, res) => {
 
 // Stats endpoint for dashboard
 app.get('/stats', (req, res) => {
+  // Support token in query param for dashboard
+  let user = (req as any).user;
+  if (!user) {
+    const token = req.query.token as string;
+    if (token) {
+      try {
+        user = jwt.verify(token, SECRET) as any;
+      } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    }
+  }
   res.json(eventBroadcaster.getStats());
 });
 
@@ -98,7 +112,23 @@ app.get('/tools/:tool/team', (req, res) => {
 });
 
 // Logging endpoints
-app.get('/logs', authenticateJWT, (req, res) => {
+// Allow unauthenticated access via query token for SSE
+app.get('/logs', (req, res) => {
+  // Support token in query param for EventSource
+  let user = (req as any).user;
+  if (!user) {
+    const token = req.query.token as string;
+    if (token) {
+      try {
+        user = jwt.verify(token, SECRET) as any;
+      } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } else if (!req.headers.authorization) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+  
   const limit = parseInt(req.query.limit as string) || 100;
   const logs = requestLogger.getLogs(limit);
   res.json({ logs });
@@ -132,7 +162,22 @@ app.get('/logs/stats', authenticateJWT, (req, res) => {
   res.json(stats);
 });
 
-app.get('/logs/stream', authenticateJWT, (req, res) => {
+app.get('/logs/stream', (req, res) => {
+  // Support token in query param for EventSource since headers can't be set on EventSource constructor
+  let user = (req as any).user;
+  if (!user) {
+    const token = req.query.token as string;
+    if (token) {
+      try {
+        user = jwt.verify(token, SECRET) as any;
+      } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } else {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+  
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

@@ -19,6 +19,12 @@ if (missingVars.length > 0) {
   console.warn('Please set credentials in .env.local before starting the server');
 }
 
+console.log('📝 Auth Users Configuration:');
+requiredEnvVars.forEach(varName => {
+  const value = process.env[varName];
+  console.log(`  ${varName}: ${value ? '✓ set' : '✗ missing'}`);
+});
+
 const users = {
   [process.env.DEVELOPER_EMAIL!]: {
     password: process.env.DEVELOPER_PASSWORD!,

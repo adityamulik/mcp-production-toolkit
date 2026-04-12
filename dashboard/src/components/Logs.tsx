@@ -37,40 +37,77 @@ export const Logs: React.FC = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const response = await fetch('/logs?limit=100');
+        const token = localStorage.getItem('token');
+        console.log('📋 Logs: Fetching with token:', token ? '✓ available' : '✗ missing');
+        if (!token) {
+          console.warn('📋 Logs: No token in localStorage');
+          return;
+        }
+        
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${apiUrl}/logs?limit=100`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+          console.error('📋 Logs: Failed to fetch -', response.status, response.statusText);
+          return;
+        }
+        
         const data = await response.json();
-        setLogs(data || []);
+        console.log('📋 Logs: Fetched', data.logs?.length || 0, 'logs');
+        setLogs(data.logs || []);
       } catch (error) {
-        console.error('Failed to fetch logs:', error);
+        console.error('📋 Logs: Fetch error:', error);
       }
     };
 
     fetchLogs();
-  }, []);
+  }, [autoRefresh]); // Refetch when autoRefresh toggles
 
   // Subscribe to real-time logs via SSE
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!autoRefresh) {
+      console.log('📋 Logs SSE: Auto-refresh disabled, not connecting');
+      setIsLive(false);
+      return;
+    }
 
-    const eventSource = new EventSource('/logs/stream');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('📋 Logs SSE: No token available, cannot connect');
+      setIsLive(false);
+      return;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    console.log('📋 Logs SSE: Connecting with token to', apiUrl);
+    const eventSource = new EventSource(apiUrl + '/logs/stream?token=' + encodeURIComponent(token));
     setIsLive(true);
+
+    eventSource.onopen = () => {
+      console.log('📋 Logs SSE: Connected ✓');
+    };
 
     eventSource.onmessage = (event) => {
       try {
         const newLog: RequestLog = JSON.parse(event.data);
+        console.log('📋 Logs SSE: New log received:', newLog.tool);
         setLogs((prevLogs) => [newLog, ...prevLogs.slice(0, 99)]);
       } catch (error) {
         console.error('Failed to parse log event:', error);
       }
     };
 
-    eventSource.onerror = () => {
-      console.error('SSE connection error');
+    eventSource.onerror = (err) => {
+      console.error('📋 Logs SSE: Connection error', err);
+      console.error('📋 Logs SSE: ReadyState:', eventSource.readyState);
       setIsLive(false);
       eventSource.close();
     };
 
     return () => {
+      console.log('📋 Logs SSE: Disconnecting');
       eventSource.close();
       setIsLive(false);
     };

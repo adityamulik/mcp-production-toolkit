@@ -13,25 +13,43 @@ export default function MetricsView() {
   const [metrics, setMetrics] = useState<MetricPoint[]>([]);
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('📊 Metrics: No token available');
+      return;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    console.log('📊 Metrics: Starting polling to', apiUrl);
     const interval = setInterval(async () => {
-      const res = await fetch('http://localhost:3000/stats');
-      const stats = await res.json();
+      try {
+        const res = await fetch(`${apiUrl}/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const stats = await res.json();
+        console.log('📊 Metrics: Fetched stats:', stats);
 
-      const now = new Date();
-      const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const now = new Date();
+        const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-      setMetrics(prev => [
-        ...prev.slice(-20), // Keep last 20 points
-        {
-          time: timeStr,
-          requests: stats.total,
-          blocked: stats.blocked,
-          anomalies: stats.anomalies
-        }
-      ]);
+        setMetrics(prev => [
+          ...prev.slice(-20), // Keep last 20 points
+          {
+            time: timeStr,
+            requests: stats.total || 0,
+            blocked: stats.blocked || 0,
+            anomalies: stats.anomalies || 0
+          }
+        ]);
+      } catch (error) {
+        console.error('Failed to fetch metrics:', error);
+      }
     }, 5000); // Update every 5 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log('📊 Metrics: Stopping polling');
+      clearInterval(interval);
+    };
   }, []);
 
   return (
