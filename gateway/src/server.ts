@@ -343,6 +343,16 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
     // 5. CIRCUIT BREAKER CHECK
     if (!mcpCircuitBreaker.canAttempt()) {
       const cbState = mcpCircuitBreaker.getState();
+      const timestamp = new Date().toISOString();
+      
+      console.log(`[${timestamp}] 🔴 Circuit Breaker OPEN - Rejecting Request`, {
+        tool,
+        user: user.email,
+        state: cbState.state,
+        failureCount: cbState.failureCount,
+        timeSinceLastFailure: cbState.lastFailureTime ? (Date.now() - cbState.lastFailureTime) + 'ms' : 'N/A'
+      });
+      
       blockedCounter.inc({ reason: 'circuit_breaker_open' });
       
       const event: SecurityEvent = {
@@ -394,8 +404,11 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
     
     let mcpResponse;
     try {
+      const requestId = `${user.email}-${tool}-${Date.now()}`;
+      console.log(`📤 Executing MCP request with retry policy`, { requestId, team, tool });
+      
       mcpResponse = await mcpRetryPolicy.executeWithStatus(
-        `${user.email}-${tool}-${Date.now()}`,
+        requestId,
         async () => {
           const response = await fetch(`${teamUrl}/tools/${tool}`, {
             method: 'POST',
@@ -415,13 +428,16 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       );
       
       if (!mcpResponse.data.ok) {
-        mcpCircuitBreaker.recordFailure();
+        console.log(`❌ MCP Response not OK`, { team, tool, status: mcpResponse.status });
+        mcpCircuitBreaker.recordFailure(team);
         throw new Error(`Team ${team} MCP server returned ${mcpResponse.status}`);
       }
       
+      console.log(`✅ MCP Request succeeded`, { team, tool, status: mcpResponse.status });
       mcpCircuitBreaker.recordSuccess();
     } catch (fetchError: any) {
-      mcpCircuitBreaker.recordFailure();
+      console.log(`❌ MCP Request failed after retries`, { team, tool, error: fetchError.message });
+      mcpCircuitBreaker.recordFailure(team);
       
       const event: SecurityEvent = {
         type: 'blocked',

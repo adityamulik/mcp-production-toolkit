@@ -86,7 +86,7 @@ function App() {
   return (
     <div className="App">
       <header>
-        <h1>🛡️ MCP Production Gateway</h1>
+        <h1>🛡️ MCP Gateway</h1>
       </header>
       
       <Sidebar 
