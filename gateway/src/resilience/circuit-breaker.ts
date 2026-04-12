@@ -73,11 +73,26 @@ export class CircuitBreaker {
   public recordSuccess(): void {
     this.failedRequests = [];
 
+    const timestamp = new Date().toISOString();
+
     if (this.circuitState.state === CircuitState.HALF_OPEN) {
       this.circuitState.successCount++;
+      console.log(`[${timestamp}] ✅ Circuit Breaker: Success in HALF_OPEN`, {
+        successCount: this.circuitState.successCount,
+        successThreshold: this.config.successThreshold
+      });
 
       if (this.circuitState.successCount >= this.config.successThreshold) {
+        console.log(`[${timestamp}] 🟢 Circuit Breaker: Recovery successful, closing circuit`);
         this.transitionTo(CircuitState.CLOSED);
+      }
+
+      // Record attempt result
+      try {
+        const { circuitBreakerAttempts } = require('../observability/metrics.js');
+        circuitBreakerAttempts.inc({ result: 'success' });
+      } catch (e) {
+        // Metrics not available
       }
     } else if (this.circuitState.state === CircuitState.CLOSED) {
       this.circuitState.failureCount = 0;
@@ -87,18 +102,43 @@ export class CircuitBreaker {
   /**
    * Record failed request
    */
-  public recordFailure(): void {
+  public recordFailure(team?: string): void {
     this.circuitState.lastFailureTime = Date.now();
     this.failedRequests.push(Date.now());
 
+    const timestamp = new Date().toISOString();
+    const recentFailures = this.failedRequests.filter(
+      time => Date.now() - time < 60000 // Last 60 seconds
+    ).length;
+
+    console.log(`[${timestamp}] ❌ Circuit Breaker Failure Recorded`, {
+      team: team || 'unknown',
+      failureCount: this.circuitState.failureCount + 1,
+      failureThreshold: this.config.failureThreshold,
+      recentFailuresInLastMin: recentFailures,
+      state: this.circuitState.state
+    });
+
     if (this.circuitState.state === CircuitState.HALF_OPEN) {
+      console.log(`[${timestamp}] 🔴 Circuit Breaker: Failure in HALF_OPEN, returning to OPEN`);
       this.transitionTo(CircuitState.OPEN);
     } else if (this.circuitState.state === CircuitState.CLOSED) {
       this.circuitState.failureCount++;
 
       if (this.circuitState.failureCount >= this.config.failureThreshold) {
+        console.log(
+          `[${timestamp}] 🔓 Circuit Breaker: Threshold reached (${this.circuitState.failureCount}/${this.config.failureThreshold}), opening circuit`
+        );
         this.transitionTo(CircuitState.OPEN);
       }
+    }
+
+    // Record metrics
+    try {
+      const { circuitBreakerFailures } = require('../observability/metrics.js');
+      circuitBreakerFailures.inc({ team: team || 'unknown' });
+    } catch (e) {
+      // Metrics not available
     }
   }
 

@@ -35,45 +35,48 @@ show_help() {
     cat << EOF
 ${BLUE}MCP Production Toolkit - Docker Compose Helper${NC}
 
-Usage: ./docker-run.sh [COMMAND]
+Usage: ./docker-run.sh [COMMAND] [SERVICE]
 
 Commands:
-  up              Start all services in background
-  down            Stop and remove all containers
-  logs            View logs from all services (follow mode)
-  logs-gateway    View logs from gateway service only
-  logs-dashboard  View logs from dashboard service only
-  logs-team-a     View logs from Team A (Analytics) service
-  logs-team-b     View logs from Team B (DevOps) service
-  logs-team-c     View logs from Team C (Developer) service
-  ps              Show status of all running services
-  restart         Restart all services
-  build           Build all Docker images
-  build-gateway   Build gateway image only
-  build-dashboard Build dashboard image only
-  build-mcp       Build MCP servers image only
-  shell-gateway   Open shell in gateway container
-  shell-dashboard Open shell in dashboard container
-  shell-team-a    Open shell in Team A container
-  test            Test all services are running
-  help            Show this help message
+  up [SERVICE]       Start services (all if no service specified)
+  up-only SERVICE    Start a single service without dependencies
+  down [SERVICE]     Stop services (all if no service specified)
+  logs [SERVICE]     View logs (all services if no service specified)
+  ps                 Show status of all running services
+  restart [SERVICE]  Restart services (all if no service specified)
+  build [SERVICE]    Build images (all if no service specified)
+  shell SERVICE      Open shell in a container
+  test               Test all services are running
+  help               Show this help message
 
-All Services:
-  - Gateway:  http://localhost:3000
-  - Dashboard: http://localhost:5173
-  - Team A:   http://localhost:8001
-  - Team B:   http://localhost:8002
-  - Team C:   http://localhost:8003
+Services:
+  gateway    - Security gateway & API endpoint (port 3000)
+  dashboard  - Web dashboard UI (port 5173)
+  team-a     - Analytics MCP server (port 8001)
+  team-b     - DevOps MCP server (port 8002)
+  team-c     - Developer MCP server (port 8003)
 
-Example:
+Examples:
   # Start all services
   ./docker-run.sh up
 
-  # View logs
-  ./docker-run.sh logs
+  # Start only gateway
+  ./docker-run.sh up gateway
 
-  # Stop everything
-  ./docker-run.sh down
+  # Start team-a with its dependencies
+  ./docker-run.sh up team-a
+
+  # Start just team-b without dependencies
+  ./docker-run.sh up-only team-b
+
+  # View logs from gateway
+  ./docker-run.sh logs gateway
+
+  # Restart dashboard
+  ./docker-run.sh restart dashboard
+
+  # Open shell in team-a
+  ./docker-run.sh shell team-a
 EOF
 }
 
@@ -97,63 +100,94 @@ test_services() {
 }
 
 # Main command handling
+# Main command handling
 CMD="${1:-help}"
+SERVICE="${2}"
+
+# Validate service name if provided
+validate_service() {
+    case "$1" in
+        gateway|dashboard|team-a|team-b|team-c)
+            return 0
+            ;;
+        *)
+            print_error "Unknown service: $1"
+            echo "Valid services: gateway, dashboard, team-a, team-b, team-c"
+            exit 1
+            ;;
+    esac
+}
+
+# Get service dependencies for startup order
+get_service_deps() {
+    case "$1" in
+        gateway)
+            echo "team-a team-b team-c gateway"
+            ;;
+        dashboard)
+            echo "team-a team-b team-c gateway dashboard"
+            ;;
+        team-a|team-b|team-c)
+            echo "$1"
+            ;;
+    esac
+}
 
 case "$CMD" in
     up)
-        print_header "Starting MCP Production Toolkit"
-        docker-compose up -d
-        print_success "All services started in background"
+        if [ -n "$SERVICE" ]; then
+            validate_service "$SERVICE"
+            SERVICES=$(get_service_deps "$SERVICE")
+            print_header "Starting $SERVICE (with dependencies)"
+            docker-compose up -d $SERVICES
+            print_success "$SERVICE started"
+        else
+            print_header "Starting MCP Production Toolkit"
+            docker-compose up -d
+            print_success "All services started"
+        fi
         sleep 3
         test_services
         echo ""
-        echo -e "${GREEN}Services are running at:${NC}"
+        echo -e "${GREEN}Services running at:${NC}"
         echo "  Gateway:   http://localhost:3000"
         echo "  Dashboard: http://localhost:5173"
-        echo ""
-        echo -e "${YELLOW}Available roles (configure in .env.local):${NC}"
-        echo "  developer"
-        echo "  admin"
-        echo "  analyst"
-        echo "  deployer"
-        echo ""
-        echo "For credential setup, see: CREDENTIALS.md"
+        ;;
+    
+    up-only)
+        if [ -z "$SERVICE" ]; then
+            print_error "SERVICE required for up-only"
+            echo "Usage: ./docker-run.sh up-only SERVICE"
+            exit 1
+        fi
+        validate_service "$SERVICE"
+        print_header "Starting $SERVICE (without dependencies)"
+        docker-compose up -d "$SERVICE"
+        print_success "$SERVICE started"
         ;;
     
     down)
-        print_header "Stopping All Services"
-        docker-compose down
-        print_success "All services stopped and removed"
+        if [ -n "$SERVICE" ]; then
+            validate_service "$SERVICE"
+            print_header "Stopping $SERVICE"
+            docker-compose down "$SERVICE"
+            print_success "$SERVICE stopped"
+        else
+            print_header "Stopping All Services"
+            docker-compose down
+            print_success "All services stopped"
+        fi
         ;;
     
     logs)
-        echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
-        docker-compose logs -f
-        ;;
-    
-    logs-gateway)
-        echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
-        docker-compose logs -f gateway
-        ;;
-    
-    logs-dashboard)
-        echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
-        docker-compose logs -f dashboard
-        ;;
-    
-    logs-team-a)
-        echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
-        docker-compose logs -f team-a
-        ;;
-    
-    logs-team-b)
-        echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
-        docker-compose logs -f team-b
-        ;;
-    
-    logs-team-c)
-        echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
-        docker-compose logs -f team-c
+        if [ -n "$SERVICE" ]; then
+            validate_service "$SERVICE"
+            echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
+            docker-compose logs -f "$SERVICE"
+        else
+            echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
+            docker-compose logs -f
+        fi
         ;;
     
     ps)
@@ -162,50 +196,44 @@ case "$CMD" in
         ;;
     
     restart)
-        print_header "Restarting All Services"
-        docker-compose restart
-        print_success "All services restarted"
+        if [ -n "$SERVICE" ]; then
+            validate_service "$SERVICE"
+            print_header "Restarting $SERVICE"
+            docker-compose restart "$SERVICE"
+            print_success "$SERVICE restarted"
+        else
+            print_header "Restarting All Services"
+            docker-compose restart
+            print_success "All services restarted"
+        fi
         sleep 2
         docker-compose ps
         ;;
     
     build)
-        print_header "Building All Images"
-        docker-compose build
-        print_success "All images built successfully"
+        if [ -n "$SERVICE" ]; then
+            validate_service "$SERVICE"
+            print_header "Building $SERVICE Image"
+            docker-compose build "$SERVICE"
+            print_success "$SERVICE image built"
+        else
+            print_header "Building All Images"
+            docker-compose build
+            print_success "All images built"
+        fi
         ;;
     
-    build-gateway)
-        print_header "Building Gateway Image"
-        docker-compose build gateway
-        print_success "Gateway image built successfully"
-        ;;
-    
-    build-dashboard)
-        print_header "Building Dashboard Image"
-        docker-compose build dashboard
-        print_success "Dashboard image built successfully"
-        ;;
-    
-    build-mcp)
-        print_header "Building MCP Servers Image"
-        docker-compose build team-a team-b team-c
-        print_success "MCP servers images built successfully"
-        ;;
-    
-    shell-gateway)
-        print_header "Opening shell in gateway container"
-        docker-compose exec gateway sh
-        ;;
-    
-    shell-dashboard)
-        print_header "Opening shell in dashboard container"
-        docker-compose exec dashboard sh
-        ;;
-    
-    shell-team-a)
-        print_header "Opening shell in Team A container"
-        docker-compose exec team-a bash
+    shell)
+        if [ -z "$SERVICE" ]; then
+            print_error "SERVICE required for shell"
+            echo "Usage: ./docker-run.sh shell SERVICE"
+            exit 1
+        fi
+        validate_service "$SERVICE"
+        print_header "Opening shell in $SERVICE container"
+        SHELL_CMD="sh"
+        [ "$SERVICE" = "team-a" ] && SHELL_CMD="bash"
+        docker-compose exec "$SERVICE" "$SHELL_CMD"
         ;;
     
     test)

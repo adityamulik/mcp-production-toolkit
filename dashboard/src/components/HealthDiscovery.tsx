@@ -64,7 +64,8 @@ const HealthDiscovery: React.FC = () => {
 
   const discoverTools = async () => {
     try {
-      const response = await fetch('http://localhost:3000/teams', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/teams`, {
         mode: 'cors'
       });
 

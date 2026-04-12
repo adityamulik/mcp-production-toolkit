@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import { setupAuth, authenticateJWT } from './auth/oauth-server.js';
 import { policyEngine } from './policy/engine.js';
 import { promptFilter } from './security/prompt-filter.js';
@@ -24,6 +25,7 @@ import {
 import { requestLogger, RequestLog } from './observability/request-logger.js';
 
 const app = express();
+const SECRET = process.env.GATEWAY_JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key';
 
 app.use(cors());
 app.use(express.json());
@@ -69,6 +71,18 @@ app.get('/events', (req, res) => {
 
 // Stats endpoint for dashboard
 app.get('/stats', (req, res) => {
+  // Support token in query param for dashboard
+  let user = (req as any).user;
+  if (!user) {
+    const token = req.query.token as string;
+    if (token) {
+      try {
+        user = jwt.verify(token, SECRET) as any;
+      } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    }
+  }
   res.json(eventBroadcaster.getStats());
 });
 
@@ -98,7 +112,23 @@ app.get('/tools/:tool/team', (req, res) => {
 });
 
 // Logging endpoints
-app.get('/logs', authenticateJWT, (req, res) => {
+// Allow unauthenticated access via query token for SSE
+app.get('/logs', (req, res) => {
+  // Support token in query param for EventSource
+  let user = (req as any).user;
+  if (!user) {
+    const token = req.query.token as string;
+    if (token) {
+      try {
+        user = jwt.verify(token, SECRET) as any;
+      } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } else if (!req.headers.authorization) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+  
   const limit = parseInt(req.query.limit as string) || 100;
   const logs = requestLogger.getLogs(limit);
   res.json({ logs });
@@ -132,7 +162,22 @@ app.get('/logs/stats', authenticateJWT, (req, res) => {
   res.json(stats);
 });
 
-app.get('/logs/stream', authenticateJWT, (req, res) => {
+app.get('/logs/stream', (req, res) => {
+  // Support token in query param for EventSource since headers can't be set on EventSource constructor
+  let user = (req as any).user;
+  if (!user) {
+    const token = req.query.token as string;
+    if (token) {
+      try {
+        user = jwt.verify(token, SECRET) as any;
+      } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } else {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+  
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -298,6 +343,16 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
     // 5. CIRCUIT BREAKER CHECK
     if (!mcpCircuitBreaker.canAttempt()) {
       const cbState = mcpCircuitBreaker.getState();
+      const timestamp = new Date().toISOString();
+      
+      console.log(`[${timestamp}] 🔴 Circuit Breaker OPEN - Rejecting Request`, {
+        tool,
+        user: user.email,
+        state: cbState.state,
+        failureCount: cbState.failureCount,
+        timeSinceLastFailure: cbState.lastFailureTime ? (Date.now() - cbState.lastFailureTime) + 'ms' : 'N/A'
+      });
+      
       blockedCounter.inc({ reason: 'circuit_breaker_open' });
       
       const event: SecurityEvent = {
@@ -349,8 +404,11 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
     
     let mcpResponse;
     try {
+      const requestId = `${user.email}-${tool}-${Date.now()}`;
+      console.log(`📤 Executing MCP request with retry policy`, { requestId, team, tool });
+      
       mcpResponse = await mcpRetryPolicy.executeWithStatus(
-        `${user.email}-${tool}-${Date.now()}`,
+        requestId,
         async () => {
           const response = await fetch(`${teamUrl}/tools/${tool}`, {
             method: 'POST',
@@ -370,13 +428,16 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       );
       
       if (!mcpResponse.data.ok) {
-        mcpCircuitBreaker.recordFailure();
+        console.log(`❌ MCP Response not OK`, { team, tool, status: mcpResponse.status });
+        mcpCircuitBreaker.recordFailure(team);
         throw new Error(`Team ${team} MCP server returned ${mcpResponse.status}`);
       }
       
+      console.log(`✅ MCP Request succeeded`, { team, tool, status: mcpResponse.status });
       mcpCircuitBreaker.recordSuccess();
     } catch (fetchError: any) {
-      mcpCircuitBreaker.recordFailure();
+      console.log(`❌ MCP Request failed after retries`, { team, tool, error: fetchError.message });
+      mcpCircuitBreaker.recordFailure(team);
       
       const event: SecurityEvent = {
         type: 'blocked',

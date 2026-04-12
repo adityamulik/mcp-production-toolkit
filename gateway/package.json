@@ -1,7 +1,7 @@
 {
   "name": "gateway",
   "version": "1.0.0",
-  "description": "MCP Production Gateway",
+  "description": "MCP Gateway",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node src/server.ts",

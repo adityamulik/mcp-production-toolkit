@@ -80,10 +80,30 @@ export class RetryPolicy {
   ): Promise<T> {
     let lastError: Error | null = null;
     let totalDelayMs = 0;
+    const timestamp = new Date().toISOString();
 
     for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
       try {
         const result = await fn();
+        
+        // Log successful execution
+        if (attempt > 1) {
+          console.log(`[${timestamp}] ✅ Retry Success`, {
+            requestId,
+            attempt,
+            totalDelayMs,
+            totalAttempts: this.config.maxAttempts
+          });
+          
+          // Record retry success metric
+          try {
+            const { retrySuccessRate } = require('../observability/metrics.js');
+            retrySuccessRate.inc({ tool: requestId.split('-')[1] || 'unknown' });
+          } catch (e) {
+            // Metrics not available
+          }
+        }
+        
         this.clearHistory(requestId);
         return result;
       } catch (error: any) {
@@ -91,6 +111,25 @@ export class RetryPolicy {
 
         // Check if error is retryable
         if (!isRetryableError(error, this.config) || attempt === this.config.maxAttempts) {
+          if (attempt === this.config.maxAttempts) {
+            console.log(`[${timestamp}] ❌ Retry Exhausted`, {
+              requestId,
+              attempts: attempt,
+              totalDelayMs,
+              finalError: error.message,
+              code: error.code
+            });
+            
+            // Record retry exhaustion metric
+            try {
+              const { retryExhausted } = require('../observability/metrics.js');
+              const toolName = requestId.split('-')[1] || 'unknown';
+              const reason = error.code || 'unknown';
+              retryExhausted.inc({ tool: toolName, reason });
+            } catch (e) {
+              // Metrics not available
+            }
+          }
           throw error;
         }
 
@@ -104,9 +143,24 @@ export class RetryPolicy {
         }
 
         console.log(
-          `Retrying request (attempt ${attempt}/${this.config.maxAttempts}) after ${delay}ms`,
-          { error: error.message }
+          `[${timestamp}] 🔄 Retrying Request (attempt ${attempt}/${this.config.maxAttempts}) after ${delay}ms`,
+          { 
+            requestId,
+            error: error.message,
+            code: error.code,
+            totalDelayMs
+          }
         );
+
+        // Record retry attempt metric
+        try {
+          const { retryAttempts, retryBackoffDelay } = require('../observability/metrics.js');
+          const toolName = requestId.split('-')[1] || 'unknown';
+          retryAttempts.inc({ tool: toolName, result: 'retry' });
+          retryBackoffDelay.observe({ attempt: attempt.toString() }, delay);
+        } catch (e) {
+          // Metrics not available
+        }
 
         // Wait before retrying
         await this.sleep(delay);
@@ -126,6 +180,7 @@ export class RetryPolicy {
   ): Promise<{ status: number; data: T }> {
     let lastResponse: { status: number; data: T } | null = null;
     let totalDelayMs = 0;
+    const timestamp = new Date().toISOString();
 
     for (let attempt = 1; attempt <= this.config.maxAttempts; attempt++) {
       try {
@@ -133,6 +188,25 @@ export class RetryPolicy {
 
         // Check if status is retryable
         if (!this.isRetryableStatus(response.status) || attempt === this.config.maxAttempts) {
+          if (attempt > 1 && response.status < 400) {
+            console.log(`[${timestamp}] ✅ Retry Success on Status`, {
+              requestId,
+              status: response.status,
+              attempt,
+              totalDelayMs,
+              totalAttempts: this.config.maxAttempts
+            });
+            
+            // Record retry success
+            try {
+              const { retrySuccessRate } = require('../observability/metrics.js');
+              const toolName = requestId.split('-')[1] || 'unknown';
+              retrySuccessRate.inc({ tool: toolName });
+            } catch (e) {
+              // Metrics not available
+            }
+          }
+          
           this.clearHistory(requestId);
           return response;
         }
@@ -148,18 +222,65 @@ export class RetryPolicy {
         }
 
         console.log(
-          `Retrying on status ${response.status} (attempt ${attempt}/${this.config.maxAttempts}) after ${delay}ms`
+          `[${timestamp}] 🔄 Retrying on HTTP ${response.status} (attempt ${attempt}/${this.config.maxAttempts}) after ${delay}ms`,
+          {
+            requestId,
+            status: response.status,
+            totalDelayMs
+          }
         );
+
+        // Record retry attempt metric
+        try {
+          const { retryAttempts, retryBackoffDelay } = require('../observability/metrics.js');
+          const toolName = requestId.split('-')[1] || 'unknown';
+          retryAttempts.inc({ tool: toolName, result: 'retry' });
+          retryBackoffDelay.observe({ attempt: attempt.toString() }, delay);
+        } catch (e) {
+          // Metrics not available
+        }
 
         await this.sleep(delay);
       } catch (error: any) {
         // Non-retryable error
+        console.log(`[${timestamp}] ❌ Non-retryable error in executeWithStatus`, {
+          requestId,
+          attempt,
+          error: error.message,
+          totalDelayMs
+        });
+        
+        // Record retry exhaustion
+        try {
+          const { retryExhausted } = require('../observability/metrics.js');
+          const toolName = requestId.split('-')[1] || 'unknown';
+          retryExhausted.inc({ tool: toolName, reason: error.message });
+        } catch (e) {
+          // Metrics not available
+        }
+        
         throw error;
       }
     }
 
-    // If we exhausted retries but have a response, return it
+    // If we exhausted retries but have a response, log exhaustion
     if (lastResponse) {
+      console.log(`[${timestamp}] ❌ Retry Exhausted on Status`, {
+        requestId,
+        finalStatus: lastResponse.status,
+        attempts: this.config.maxAttempts,
+        totalDelayMs
+      });
+      
+      // Record retry exhaustion
+      try {
+        const { retryExhausted } = require('../observability/metrics.js');
+        const toolName = requestId.split('-')[1] || 'unknown';
+        retryExhausted.inc({ tool: toolName, reason: `http_${lastResponse.status}` });
+      } catch (e) {
+        // Metrics not available
+      }
+      
       return lastResponse;
     }
 

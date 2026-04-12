@@ -72,6 +72,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.gateway
+    env_file: .env.local
     environment:
       IN_DOCKER: "true"
       NODE_ENV: production
@@ -100,8 +101,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dashboard
-    environment:
-      VITE_API_URL: http://gateway:3000
+      args:
+        VITE_API_URL: http://localhost:3000
     ports:
       - "5173:5173"
     depends_on:
