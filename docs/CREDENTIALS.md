@@ -52,17 +52,18 @@ npm start  # Will auto-load .env.local if you have dotenv installed
 
 ### Authentication Credentials
 ```env
+# Replace with your actual credentials
 ANALYST_EMAIL=analyst@company.com
-ANALYST_PASSWORD=analyst123
+ANALYST_PASSWORD=<your-secure-password>
 
 DEPLOYER_EMAIL=deployer@company.com
-DEPLOYER_PASSWORD=deploy123
+DEPLOYER_PASSWORD=<your-secure-password>
 
 DEVELOPER_EMAIL=developer@company.com
-DEVELOPER_PASSWORD=dev123
+DEVELOPER_PASSWORD=<your-secure-password>
 
 ADMIN_EMAIL=admin@company.com
-ADMIN_PASSWORD=admin123
+ADMIN_PASSWORD=<your-secure-password>
 ```
 
 ### Server Configuration
@@ -70,7 +71,7 @@ ADMIN_PASSWORD=admin123
 OAUTH_SERVER_URL=http://localhost:3000
 OAUTH_TOKEN_ENDPOINT=/oauth/token
 GATEWAY_PORT=3000
-GATEWAY_JWT_SECRET=your-super-secret-jwt-key-change-this
+GATEWAY_JWT_SECRET=<your-secure-jwt-secret-key>
 ```
 
 ### Dashboard & Database

@@ -33,13 +33,12 @@ That's it! All services will be running:
 ### Access Dashboard
 
 1. Open browser: **http://localhost:5173**
-2. Login with credentials:
-   - **Username:** `developer`
-   - **Password:** `dev123`
-3. Other available credentials:
-   - `admin` / `admin123`
-   - `analyst` / `analyst123`
-   - `deployer` / `deploy123`
+2. Login with credentials from [CREDENTIALS.md](CREDENTIALS.md)
+3. Four roles available:
+   - `developer` (Developer role)
+   - `admin` (Administrator role)
+   - `analyst` (Analyst role)
+   - `deployer` (Deployer role)
 
 ## Docker Compose Helper Script
 

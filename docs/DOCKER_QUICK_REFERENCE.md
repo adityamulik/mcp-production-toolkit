@@ -41,10 +41,14 @@ docker-compose logs -f team-c       # Team C
 | Team C | http://localhost:8003 | Developer tools |
 
 ## Login Credentials
-- **developer** / **dev123**
-- admin / admin123
-- analyst / analyst123
-- deployer / deploy123
+
+See [CREDENTIALS.md](CREDENTIALS.md) for credential setup
+
+Available roles:
+- developer
+- admin
+- analyst
+- deployer
 
 ## Common Commands
 

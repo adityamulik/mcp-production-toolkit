@@ -123,10 +123,13 @@ The React dashboard provides real-time monitoring at http://localhost:5173
 - **Request Logs** - Audit trail with filtering
 
 ### Default Credentials
-- **developer** / **dev123** (Developer role)
-- **admin** / **admin123** (Admin role)
-- **analyst** / **analyst123** (Analyst role)
-- **deployer** / **deploy123** (Deployer role)
+See [CREDENTIALS.md](../CREDENTIALS.md) for credential setup and configuration.
+
+Four user roles are available:
+- **developer** (Developer role)
+- **admin** (Admin role)
+- **analyst** (Analyst role)
+- **deployer** (Deployer role)
 
 ---
 
@@ -155,7 +158,7 @@ docker-compose up -d
 See: [INSTALLATION.md - Accessing Dashboard](INSTALLATION.md#accessing-the-dashboard)
 
 **URL:** http://localhost:5173  
-**Login:** developer / dev123
+**Login:** See [CREDENTIALS.md](../CREDENTIALS.md) for default credentials
 
 ### Check Service Status
 See: [INSTALLATION.md - Verification](INSTALLATION.md#verification)
@@ -177,10 +180,10 @@ docker-compose logs -f gateway
 See: [TOOLS.md](TOOLS.md)
 
 ```bash
-# Get token
+# Get token (use credentials from .env.local)
 TOKEN=$(curl -s -X POST http://localhost:3000/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"developer","password":"dev123"}' | grep -o '"access_token":"[^"]*' | sed 's/"access_token":"//')
+  -d '{"email":"developer@company.com","password":"YOUR_PASSWORD"}' | grep -o '"access_token":"[^"]*' | sed 's/"access_token":"//')
 
 # Call tool
 curl -X POST http://localhost:3000/mcp/tools/list_directory \

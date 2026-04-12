@@ -202,18 +202,21 @@ curl http://localhost:5173/                 # Dashboard
 
 ### Test Authentication
 ```bash
-# Get JWT token
+# Get JWT token (use credentials from .env.local)
+DEVELOPER_EMAIL="developer@company.com"
+DEVELOPER_PASSWORD="your-password"  # Set in .env.local
+
 curl -X POST http://localhost:3000/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"developer","password":"dev123"}'
+  -d "{\"email\":\"$DEVELOPER_EMAIL\",\"password\":\"$DEVELOPER_PASSWORD\"}"
 
 # Expected response:
 # {"access_token":"eyJhbGciOi..."}
 ```
 
-### Test MCP Tool Call
+# Test MCP Tool Call
 ```bash
-# Use token from above
+# Use token from above and your actual credentials from .env.local
 TOKEN="<your-token-here>"
 
 curl -X POST http://localhost:3000/mcp/tools/list_directory \
@@ -237,18 +240,19 @@ http://localhost:5173
 
 ### Default Credentials
 
-| Username | Password | Role |
-|----------|----------|------|
-| `developer` | `dev123` | Developer |
-| `admin` | `admin123` | Administrator |
-| `analyst` | `analyst123` | Analyst |
-| `deployer` | `deploy123` | Deployer |
+See [CREDENTIALS.md](CREDENTIALS.md) for credential setup and configuration.
+
+| Username | Role |
+|----------|------|
+| `developer` | Developer |
+| `admin` | Administrator |
+| `analyst` | Analyst |
+| `deployer` | Deployer |
 
 ### First Login
+
 1. Open http://localhost:5173
-2. Enter credentials:
-   - **Username:** `developer`
-   - **Password:** `dev123`
+2. Use credentials configured in `.env.local` (see [CREDENTIALS.md](CREDENTIALS.md))
 3. Click "Login"
 
 ### Dashboard Pages
@@ -343,16 +347,17 @@ docker-compose restart team-a
 
 **Problem:** "Invalid credentials" or "Login failed"
 
-**Solution:**
+**Solution:** Check your `.env.local` file has correct credentials configured:
 ```bash
 # Verify endpoint is /auth/token (not /oauth/token)
+# Use your actual credentials from .env.local
 curl -X POST http://localhost:3000/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"developer","password":"dev123"}'
+  -d '{"email":"developer@company.com","password":"YOUR_PASSWORD"}'  # Replace YOUR_PASSWORD
 
 # Check that you're using email field, not username
-# Correct: {"email":"developer","password":"dev123"}
-# Wrong:  {"username":"developer","password":"dev123"}
+# Correct: {"email":"developer@company.com","password":"..."}  
+# Wrong:  {"username":"developer","password":"..."}
 ```
 
 ### Containers Keep Restarting
@@ -537,7 +542,7 @@ services:
 ## Next Steps
 
 1. ✅ **Access Dashboard:** http://localhost:5173
-2. ✅ **Login with:** `developer` / `dev123`
+2. ✅ **Login with:** credentials configured in `.env.local` (see [CREDENTIALS.md](CREDENTIALS.md))
 3. ✅ **Explore pages:**
    - MCP Health - Check team server status
    - Security Events - View real-time security
@@ -609,10 +614,10 @@ docker-compose build
 # Access dashboard
 http://localhost:5173
 
-# Auth token
+# Auth token (use credentials from .env.local)
 curl -X POST http://localhost:3000/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"email":"developer","password":"dev123"}'
+  -d '{"email":"developer@company.com","password":"YOUR_PASSWORD"}'  # Replace YOUR_PASSWORD
 ```
 
 ---

@@ -66,12 +66,11 @@ function App() {
             />
             <button onClick={login}>Login</button>
             <div className="login-help">
-              <p>Demo Credentials:</p>
+              <p>Available test users:</p>
               <ul>
-                <li><code>developer</code> / <code>dev123</code></li>
-                <li><code>admin</code> / <code>admin123</code></li>
-                <li><code>analyst</code> / <code>analyst123</code></li>
-                <li><code>deployer</code> / <code>deploy123</code></li>
+                <li>Use credentials from <code>.env.local</code></li>
+                <li>Roles: <code>developer</code>, <code>admin</code>, <code>analyst</code>, <code>deployer</code></li>
+                <li>See CREDENTIALS.md for setup</li>
               </ul>
             </div>
           </div>

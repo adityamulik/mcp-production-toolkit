@@ -3,28 +3,42 @@ import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.GATEWAY_JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key';
 
-// Load user credentials from environment variables
-// Format: DEVELOPER_EMAIL, DEVELOPER_PASSWORD, etc.
+// Load user credentials exclusively from environment variables
+// All credentials must be provided via .env.local or environment
+const requiredEnvVars = [
+  'DEVELOPER_EMAIL', 'DEVELOPER_PASSWORD',
+  'ADMIN_EMAIL', 'ADMIN_PASSWORD',
+  'ANALYST_EMAIL', 'ANALYST_PASSWORD',
+  'DEPLOYER_EMAIL', 'DEPLOYER_PASSWORD'
+];
+
+// Validate all required environment variables are set
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+  console.warn(`⚠️  Missing environment variables: ${missingVars.join(', ')}`);
+  console.warn('Please set credentials in .env.local before starting the server');
+}
+
 const users = {
-  [process.env.DEVELOPER_EMAIL || 'developer']: {
-    password: process.env.DEVELOPER_PASSWORD || 'dev123',
+  [process.env.DEVELOPER_EMAIL!]: {
+    password: process.env.DEVELOPER_PASSWORD!,
     role: 'developer',
-    email: process.env.DEVELOPER_EMAIL || 'developer@company.com'
+    email: process.env.DEVELOPER_EMAIL!
   },
-  [process.env.ADMIN_EMAIL || 'admin']: {
-    password: process.env.ADMIN_PASSWORD || 'admin123',
+  [process.env.ADMIN_EMAIL!]: {
+    password: process.env.ADMIN_PASSWORD!,
     role: 'admin',
-    email: process.env.ADMIN_EMAIL || 'admin@company.com'
+    email: process.env.ADMIN_EMAIL!
   },
-  [process.env.ANALYST_EMAIL || 'analyst']: {
-    password: process.env.ANALYST_PASSWORD || 'analyst123',
+  [process.env.ANALYST_EMAIL!]: {
+    password: process.env.ANALYST_PASSWORD!,
     role: 'analyst',
-    email: process.env.ANALYST_EMAIL || 'analyst@company.com'
+    email: process.env.ANALYST_EMAIL!
   },
-  [process.env.DEPLOYER_EMAIL || 'deployer']: {
-    password: process.env.DEPLOYER_PASSWORD || 'deploy123',
+  [process.env.DEPLOYER_EMAIL!]: {
+    password: process.env.DEPLOYER_PASSWORD!,
     role: 'deployer',
-    email: process.env.DEPLOYER_EMAIL || 'deployer@company.com'
+    email: process.env.DEPLOYER_EMAIL!
   }
 };
 

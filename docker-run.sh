@@ -111,11 +111,13 @@ case "$CMD" in
         echo "  Gateway:   http://localhost:3000"
         echo "  Dashboard: http://localhost:5173"
         echo ""
-        echo -e "${YELLOW}Default credentials:${NC}"
-        echo "  developer / dev123"
-        echo "  admin / admin123"
-        echo "  analyst / analyst123"
-        echo "  deployer / deploy123"
+        echo -e "${YELLOW}Available roles (configure in .env.local):${NC}"
+        echo "  developer"
+        echo "  admin"
+        echo "  analyst"
+        echo "  deployer"
+        echo ""
+        echo "For credential setup, see: CREDENTIALS.md"
         ;;
     
     down)
