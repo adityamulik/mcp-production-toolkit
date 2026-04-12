@@ -21,6 +21,7 @@ import {
   getAllTeams,
   getTeamConfigForTool
 } from './config/teams.js';
+import { requestLogger, RequestLog } from './observability/request-logger.js';
 
 const app = express();
 
@@ -96,6 +97,55 @@ app.get('/tools/:tool/team', (req, res) => {
   res.json(teamConfig);
 });
 
+// Logging endpoints
+app.get('/logs', authenticateJWT, (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 100;
+  const logs = requestLogger.getLogs(limit);
+  res.json({ logs });
+});
+
+app.get('/logs/user/:userId', authenticateJWT, (req, res) => {
+  const userId = req.params.userId;
+  const logs = requestLogger.getLogsByUser(userId);
+  res.json({ userId, logs });
+});
+
+app.get('/logs/tool/:tool', authenticateJWT, (req, res) => {
+  const tool = req.params.tool;
+  const logs = requestLogger.getLogsByTool(tool);
+  res.json({ tool, logs });
+});
+
+app.get('/logs/team/:team', authenticateJWT, (req, res) => {
+  const team = req.params.team;
+  const logs = requestLogger.getLogsByTeam(team);
+  res.json({ team, logs });
+});
+
+app.get('/logs/blocked', authenticateJWT, (req, res) => {
+  const logs = requestLogger.getBlockedLogs();
+  res.json({ logs });
+});
+
+app.get('/logs/stats', authenticateJWT, (req, res) => {
+  const stats = requestLogger.getStats();
+  res.json(stats);
+});
+
+app.get('/logs/stream', authenticateJWT, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const unsubscribe = requestLogger.onNewLog((log: RequestLog) => {
+    res.write(`data: ${JSON.stringify(log)}\n\n`);
+  });
+
+  req.on('close', () => {
+    unsubscribe();
+  });
+});
+
 // Main MCP proxy endpoint
 app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
   const start = Date.now();
@@ -120,6 +170,22 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       };
       eventBroadcaster.logEvent(event);
       
+      // Log blocked request
+      const duration = (Date.now() - start) / 1000;
+      requestLogger.log({
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        method: 'POST',
+        path: `/mcp/tools/${tool}`,
+        tool,
+        team: user.role,
+        userId: user.email,
+        status: 403,
+        duration: Math.round(duration * 1000),
+        blocked: true,
+        reason: 'RBAC_VIOLATION'
+      });
+      
       return res.status(403).json({
         blocked: true,
         reason: 'RBAC_VIOLATION',
@@ -141,6 +207,22 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
           details: { resource: args.resource }
         };
         eventBroadcaster.logEvent(event);
+        
+        // Log blocked request
+        const duration = (Date.now() - start) / 1000;
+        requestLogger.log({
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: Date.now(),
+          method: 'POST',
+          path: `/mcp/tools/${tool}`,
+          tool,
+          team: user.role,
+          userId: user.email,
+          status: 403,
+          duration: Math.round(duration * 1000),
+          blocked: true,
+          reason: 'RESOURCE_DENIED'
+        });
         
         return res.status(403).json({
           blocked: true,
@@ -165,6 +247,22 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
         details: { patterns: filterResult.detectedPatterns }
       };
       eventBroadcaster.logEvent(event);
+      
+      // Log blocked request
+      const duration = (Date.now() - start) / 1000;
+      requestLogger.log({
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        method: 'POST',
+        path: `/mcp/tools/${tool}`,
+        tool,
+        team: 'N/A',
+        userId: user.email,
+        status: 400,
+        duration: Math.round(duration * 1000),
+        blocked: true,
+        reason: 'PROMPT_INJECTION'
+      });
       
       return res.status(400).json({
         blocked: true,
@@ -211,6 +309,22 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
         details: { circuitState: cbState }
       };
       eventBroadcaster.logEvent(event);
+      
+      // Log blocked request
+      const duration = (Date.now() - start) / 1000;
+      requestLogger.log({
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        method: 'POST',
+        path: `/mcp/tools/${tool}`,
+        tool,
+        team: 'N/A',
+        userId: user.email,
+        status: 503,
+        duration: Math.round(duration * 1000),
+        blocked: true,
+        reason: 'CIRCUIT_BREAKER_OPEN'
+      });
       
       return res.status(503).json({
         blocked: true,
@@ -274,6 +388,23 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       };
       eventBroadcaster.logEvent(event);
       
+      // Log blocked request
+      const duration = (Date.now() - start) / 1000;
+      requestLogger.log({
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        method: 'POST',
+        path: `/mcp/tools/${tool}`,
+        tool,
+        team: team || 'UNKNOWN',
+        userId: user.email,
+        status: 503,
+        duration: Math.round(duration * 1000),
+        blocked: true,
+        reason: 'MCP_SERVICE_ERROR',
+        error: fetchError.message
+      });
+      
       return res.status(503).json({
         blocked: true,
         reason: 'MCP_SERVICE_ERROR',
@@ -297,6 +428,20 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       details: { duration, team }
     };
     eventBroadcaster.logEvent(event);
+
+    // Log successful request
+    requestLogger.log({
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: Date.now(),
+      method: 'POST',
+      path: `/mcp/tools/${tool}`,
+      tool,
+      team,
+      userId: user.email,
+      status: 200,
+      duration: Math.round(duration * 1000),
+      blocked: false
+    });
     
     res.json({ success: true, result, team, duration });
     

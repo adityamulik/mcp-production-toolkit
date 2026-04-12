@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import HealthDiscovery from './components/HealthDiscovery';
 import SecurityDashboard from './components/SecurityDashboard';
 import MetricsView from './components/MetricsView';
+import { Logs } from './components/Logs';
 import './App.css';
 
-type PageType = 'health' | 'security' | 'metrics';
+type PageType = 'health' | 'security' | 'metrics' | 'logs';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -98,6 +99,7 @@ function App() {
         {currentPage === 'health' && <HealthDiscovery />}
         {currentPage === 'security' && <SecurityDashboard />}
         {currentPage === 'metrics' && <MetricsView />}
+        {currentPage === 'logs' && <Logs />}
       </main>
     </div>
   );
