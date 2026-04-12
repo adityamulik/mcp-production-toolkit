@@ -1,0 +1,102 @@
+.security-dashboard {
+  background: #16213e;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.security-dashboard h2 {
+  margin-bottom: 20px;
+  color: #4af;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+@media (max-width: 800px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stat-card {
+  background: #0a0a0a;
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 2px solid transparent;
+}
+
+.stat-card.blocked { border-color: #f44; }
+.stat-card.allowed { border-color: #4f4; }
+.stat-card.anomaly { border-color: #fa4; }
+.stat-card.total { border-color: #4af; }
+
+.stat-value {
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.events-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.event {
+  background: #0a0a0a;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.event.event-blocked { border-left-color: #f44; }
+.event.event-allowed { border-left-color: #4f4; }
+.event.event-anomaly { border-left-color: #fa4; }
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.event-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.event-badge.blocked { background: #f44; color: white; }
+.event-badge.allowed { background: #4f4; color: #0a0a0a; }
+.event-badge.anomaly { background: #fa4; color: #0a0a0a; }
+
+.event-time {
+  font-size: 12px;
+  color: #888;
+}
+
+.event-body {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.event-body div {
+  margin: 5px 0;
+}
+
+.severity-high { color: #f44; }
+.severity-medium { color: #fa4; }
+.severity-low { color: #4af; }
