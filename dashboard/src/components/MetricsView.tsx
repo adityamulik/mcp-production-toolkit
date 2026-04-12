@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CheckCircle, AlertCircle, Zap } from 'lucide-react';
 import './MetricsView.css';
 
 interface MetricPoint {
@@ -9,8 +10,17 @@ interface MetricPoint {
   anomalies: number;
 }
 
+interface CircuitBreakerMetrics {
+  state: 'closed' | 'open' | 'half_open';
+  failureCount: number;
+  successCount: number;
+  timeSincLastFailure: number | null;
+  recentFailures: number;
+}
+
 export default function MetricsView() {
   const [metrics, setMetrics] = useState<MetricPoint[]>([]);
+  const [cbMetrics, setCbMetrics] = useState<CircuitBreakerMetrics | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -23,6 +33,7 @@ export default function MetricsView() {
     console.log('📊 Metrics: Starting polling to', apiUrl);
     const interval = setInterval(async () => {
       try {
+        // Fetch request metrics
         const res = await fetch(`${apiUrl}/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -41,6 +52,19 @@ export default function MetricsView() {
             anomalies: stats.anomalies || 0
           }
         ]);
+
+        // Fetch circuit breaker metrics
+        try {
+          const cbRes = await fetch(`${apiUrl}/health/circuit`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (cbRes.ok) {
+            const cbData = await cbRes.json();
+            setCbMetrics(cbData.circuitBreaker);
+          }
+        } catch (e) {
+          console.error('Failed to fetch circuit breaker metrics:', e);
+        }
       } catch (error) {
         console.error('Failed to fetch metrics:', error);
       }
@@ -81,6 +105,31 @@ export default function MetricsView() {
           </div>
         )}
       </div>
+
+      {cbMetrics && (
+        <div className="circuit-breaker-status">
+          <h3>🔌 Circuit Breaker Status</h3>
+          <div className="cb-status-container">
+            <div className={`cb-state ${cbMetrics.state}`}>
+              {cbMetrics.state === 'closed' && <CheckCircle className="cb-icon" />}
+              {cbMetrics.state === 'open' && <AlertCircle className="cb-icon" />}
+              {cbMetrics.state === 'half_open' && <Zap className="cb-icon" />}
+              <div className="cb-info">
+                <span className="cb-state-label">
+                  {cbMetrics.state === 'closed' ? '🟢 CLOSED' : cbMetrics.state === 'open' ? '🔴 OPEN' : '⚡ HALF-OPEN'}
+                </span>
+                <div className="cb-details">
+                  <span>Failures: {cbMetrics.failureCount}</span>
+                  <span>Recent (60s): {cbMetrics.recentFailures}</span>
+                  {cbMetrics.timeSincLastFailure && (
+                    <span>Last Failure: {(cbMetrics.timeSincLastFailure / 1000).toFixed(1)}s ago</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,12 @@
   color: #4af;
 }
 
+.metrics-view h3 {
+  margin-bottom: 15px;
+  color: #4af;
+  font-size: 16px;
+}
+
 .metrics-summary {
   margin-top: 20px;
   padding: 20px;
@@ -39,3 +45,142 @@
 .text-red { color: #f44; }
 .text-yellow { color: #fa4; }
 .text-green { color: #4f4; }
+
+/* Circuit Breaker Status */
+.circuit-breaker-status {
+  margin-top: 20px;
+  padding: 20px;
+  background: #0a0a0a;
+  border-radius: 8px;
+}
+
+.circuit-breaker-status h3 {
+  margin-bottom: 15px;
+  color: #4af;
+}
+
+.cb-status-container {
+  display: flex;
+  gap: 12px;
+}
+
+.cb-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #16213e;
+  border-radius: 8px;
+  border-left: 4px solid;
+  transition: all 0.3s ease;
+}
+
+.cb-state.closed {
+  border-left-color: #51cf66;
+  background: rgba(81, 207, 102, 0.05);
+}
+
+.cb-state.open {
+  border-left-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.05);
+}
+
+.cb-state.half_open {
+  border-left-color: #ffd93d;
+  background: rgba(255, 217, 61, 0.05);
+}
+
+.cb-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.cb-state.closed .cb-icon {
+  color: #51cf66;
+  filter: drop-shadow(0 0 6px rgba(81, 207, 102, 0.4));
+}
+
+.cb-state.open .cb-icon {
+  color: #ff6b6b;
+  filter: drop-shadow(0 0 6px rgba(255, 107, 107, 0.4));
+}
+
+.cb-state.half_open .cb-icon {
+  color: #ffd93d;
+  filter: drop-shadow(0 0 6px rgba(255, 217, 61, 0.4));
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.cb-info {
+  flex: 1;
+}
+
+.cb-state-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.cb-state.closed .cb-state-label {
+  color: #51cf66;
+}
+
+.cb-state.open .cb-state-label {
+  color: #ff6b6b;
+}
+
+.cb-state.half_open .cb-state-label {
+  color: #ffd93d;
+}
+
+.cb-details {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: #b0b0b0;
+}
+
+.cb-details span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cb-details span strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cb-details {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cb-state {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .cb-icon {
+    width: 28px;
+    height: 28px;
+  }
+}

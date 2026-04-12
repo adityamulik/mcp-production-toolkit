@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Server, Activity, BarChart3, LogOut, Menu, X, FileText } from 'lucide-react';
+import { Server, Activity, BarChart3, LogOut, Menu, X, FileText, Zap, RefreshCw } from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
-  activePage: 'health' | 'security' | 'metrics' | 'logs';
-  onPageChange: (page: 'health' | 'security' | 'metrics' | 'logs') => void;
+  activePage: 'health' | 'security' | 'metrics' | 'logs' | 'circuit-breaker' | 'retries';
+  onPageChange: (page: 'health' | 'security' | 'metrics' | 'logs' | 'circuit-breaker' | 'retries') => void;
   username: string;
   onLogout: () => void;
 }
@@ -16,6 +16,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange, username, o
     { id: 'health', label: 'MCP Health', icon: Server, description: 'Team servers status' },
     { id: 'security', label: 'Security Events', icon: Activity, description: 'Real-time monitoring' },
     { id: 'metrics', label: 'Metrics', icon: BarChart3, description: 'Performance data' },
+    { id: 'circuit-breaker', label: 'Circuit Breaker', icon: Zap, description: 'Resilience status' },
+    { id: 'retries', label: 'Retries', icon: RefreshCw, description: 'Retry metrics by tool' },
     { id: 'logs', label: 'Request Logs', icon: FileText, description: 'Audit trail' }
   ];
 
@@ -39,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange, username, o
                 key={item.id}
                 className={`nav-item ${activePage === item.id ? 'active' : ''}`}
                 onClick={() => {
-                  onPageChange(item.id as 'health' | 'security' | 'metrics' | 'logs');
+                  onPageChange(item.id as 'health' | 'security' | 'metrics' | 'logs' | 'circuit-breaker' | 'retries');
                   window.innerWidth < 768 && setIsOpen(false);
                 }}
               >

@@ -4,9 +4,11 @@ import HealthDiscovery from './components/HealthDiscovery';
 import SecurityDashboard from './components/SecurityDashboard';
 import MetricsView from './components/MetricsView';
 import { Logs } from './components/Logs';
+import CircuitBreakerPanel from './components/CircuitBreakerPanel';
+import RetriesPanel from './components/RetriesPanel';
 import './App.css';
 
-type PageType = 'health' | 'security' | 'metrics' | 'logs';
+type PageType = 'health' | 'security' | 'metrics' | 'logs' | 'circuit-breaker' | 'retries';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -101,6 +103,8 @@ function App() {
         {currentPage === 'security' && <SecurityDashboard />}
         {currentPage === 'metrics' && <MetricsView />}
         {currentPage === 'logs' && <Logs />}
+        {currentPage === 'circuit-breaker' && <CircuitBreakerPanel />}
+        {currentPage === 'retries' && <RetriesPanel />}
       </main>
     </div>
   );
