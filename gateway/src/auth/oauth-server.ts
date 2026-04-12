@@ -4,9 +4,12 @@ import jwt from 'jsonwebtoken';
 const SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
 // Mock user database
+
 const users = {
-  'developer@company.com': { password: 'dev123', role: 'developer' },
-  'admin@company.com': { password: 'admin123', role: 'admin' }
+  'developer': { password: 'dev123', role: 'developer', email: 'developer@company.com' },
+  'admin': { password: 'admin123', role: 'admin', email: 'admin@company.com' },
+  'analyst': { password: 'analyst123', role: 'analyst', email: 'analyst@company.com' },
+  'deployer': { password: 'deploy123', role: 'deployer', email: 'deployer@company.com' }
 };
 
 export function setupAuth(app: Express) {
