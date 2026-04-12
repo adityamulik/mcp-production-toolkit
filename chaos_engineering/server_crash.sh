@@ -58,43 +58,51 @@ echo ""
 # Export token for use in subshells
 export TOKEN
 
-# Terminal 1: Start load generator (sends requests continuously)
+# Configuration
+CONTAINER_NAME="mcp-team-a"
+KILL_DELAY=10  # seconds before killing the container
+RESTART_DELAY=15  # seconds before restarting the container
+
+# Start load generator in the background
 echo -e "${BLUE}📊 Starting load generator...${NC}"
 while true; do
   curl -s -X POST ${API_URL}/mcp/tools/query_database \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d '{"arguments": {"query": "SELECT * FROM analytics"}}' \
-    | jq -r '.result.status // .error' &
+    | jq -r '.result.status // .error' 
   sleep 0.5
-done
+done &
 
-# Output shows: "success" "success" "success" ...
+LOAD_GEN_PID=$!
+echo -e "${YELLOW}Load generator started (PID: $LOAD_GEN_PID)${NC}"
+echo ""
 
-# Terminal 2: Kill a server (simulating crash)
-docker kill mcp-database-server-1
+# Schedule container kill after delay
+sleep $KILL_DELAY
+echo -e "${RED}💥 KILLING CONTAINER: $CONTAINER_NAME${NC}"
+docker kill $CONTAINER_NAME
 
-# Terminal 1 output changes to:
-# "success" (server 2)
-# "success" (server 3)
-# "Circuit breaker OPEN for database-mcp-1" (logged)
-# "success" (server 2)
-# "success" (server 3)
-# ... continues working, just routing around dead server
+echo -e "${RED}Container killed. Observe the load generator output above...${NC}"
+echo -e "${YELLOW}Waiting $RESTART_DELAY seconds before restart...${NC}"
+sleep $RESTART_DELAY
 
-# Dashboard shows:
-# 🔴 Circuit breaker OPEN: database-mcp-1
-# 🟢 Requests still succeeding (routed to healthy servers)
+echo -e "${GREEN}🔄 RESTARTING CONTAINER: $CONTAINER_NAME${NC}"
+docker start $CONTAINER_NAME
 
-# Terminal 3: Restart server
-docker start mcp-database-server-1
+echo -e "${GREEN}✅ Container restarted. Monitor circuit breaker recovery...${NC}"
+echo -e "${YELLOW}Dashboard: Circuit Breaker page should show transition from OPEN → HALF_OPEN → CLOSED${NC}"
+echo ""
 
-# After 10 seconds (resetTimeout):
-# Circuit breaker tries HALF_OPEN
-# Test request succeeds
-# Circuit breaker closes
-# Traffic resumes to all 3 servers
+# Keep monitoring for another 30 seconds
+sleep 30
+echo -e "${BLUE}Test complete. Killing load generator...${NC}"
+kill $LOAD_GEN_PID 2>/dev/null || true
 
-# Dashboard shows:
-# 🟢 Circuit breaker CLOSED: database-mcp-1
-# ✅ All servers healthy
+echo -e "${GREEN}✅ Chaos test finished${NC}"
+echo ""
+echo -e "${YELLOW}Summary:${NC}"
+echo -e "  1. Kill delay: ${KILL_DELAY}s"
+echo -e "  2. Restart delay: ${RESTART_DELAY}s"
+echo -e "  3. Container: $CONTAINER_NAME"
+echo -e "  4. Check Dashboard → Circuit Breaker for state transitions"
