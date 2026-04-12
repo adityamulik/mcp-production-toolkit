@@ -1,0 +1,32 @@
+# MCP Servers Dockerfile - Python/FastMCP
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY mcp_server/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy MCP server files
+COPY mcp_server/ .
+
+# Default to team A
+ENV MCP_PORT=8001
+ENV MCP_HOST=0.0.0.0
+ENV TEAM=A
+
+EXPOSE 8001 8002 8003
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${MCP_PORT}/health').read()" || exit 1
+
+# Run appropriate team bridge based on TEAM environment variable
+CMD if [ "$TEAM" = "A" ]; then \
+    python http_bridge_team_a.py; \
+  elif [ "$TEAM" = "B" ]; then \
+    MCP_PORT=8002 python http_bridge_team_b.py; \
+  elif [ "$TEAM" = "C" ]; then \
+    MCP_PORT=8003 python http_bridge_team_c.py; \
+  else \
+    echo "Invalid TEAM: $TEAM (must be A, B, or C)" && exit 1; \
+  fi

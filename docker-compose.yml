@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # Team A - Analytics MCP Server
+  team-a:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    environment:
+      TEAM: A
+      MCP_PORT: 8001
+      MCP_HOST: 0.0.0.0
+    ports:
+      - "8001:8001"
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    container_name: mcp-team-a
+
+  # Team B - DevOps MCP Server
+  team-b:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    environment:
+      TEAM: B
+      MCP_PORT: 8002
+      MCP_HOST: 0.0.0.0
+    ports:
+      - "8002:8002"
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    container_name: mcp-team-b
+
+  # Team C - Developer MCP Server
+  team-c:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    environment:
+      TEAM: C
+      MCP_PORT: 8003
+      MCP_HOST: 0.0.0.0
+    ports:
+      - "8003:8003"
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    container_name: mcp-team-c
+
+  # Gateway - Security proxy and routing
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    environment:
+      IN_DOCKER: "true"
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      team-a:
+        condition: service_healthy
+      team-b:
+        condition: service_healthy
+      team-c:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    container_name: mcp-gateway
+
+  # Dashboard - React UI
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    environment:
+      VITE_API_URL: http://gateway:3000
+    ports:
+      - "5173:5173"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5173/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    container_name: mcp-dashboard
+
+networks:
+  mcp-network:
+    driver: bridge
+    name: mcp-network
+
+# Usage:
+# docker-compose up -d                    - Start all services in background
+# docker-compose logs -f                  - View logs from all services
+# docker-compose logs -f gateway          - View logs from specific service
+# docker-compose down                     - Stop and remove all containers
+# docker-compose ps                       - Show status of all services

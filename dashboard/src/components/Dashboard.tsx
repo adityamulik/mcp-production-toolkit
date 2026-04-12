@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Shield, AlertTriangle, CheckCircle, Activity } from 'lucide-react';
 import './SecurityDashboard.css';
 

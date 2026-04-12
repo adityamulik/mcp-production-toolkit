@@ -1,108 +1,391 @@
-# MCP Production Gateway
+# MCP Production Toolkit
 
-> The missing production layer for Model Context Protocol servers
+> Production-ready security, reliability, and observability layer for Model Context Protocol servers
 
-## The Problem
+## 🚀 Quick Start (2 minutes)
 
-MCP servers are easy to build. Production deployment is hard.
+### Prerequisites
+- Docker & Docker Compose installed
+- Ports 3000, 5173, 8001-8003 available
 
-**Without this gateway:**
-- ❌ Every server reimplements auth
-- ❌ No visibility into what's happening
-- ❌ One server crash = total outage
-- ❌ No idea what LLM calls cost
-- ❌ Security vulnerabilities everywhere
-
-**With this gateway:**
-- ✅ Add production features to ANY MCP server in 5 minutes
-- ✅ Zero code changes required
-- ✅ Enterprise-grade security, reliability, observability
-- ✅ Battle-tested at Fortune 10 scale
-
-## Quick Start
+### Start Everything
 ```bash
-# One command to demo everything
-docker-compose up
+# Clone and navigate
+git clone <repository>
+cd mcp-production-toolkit
 
-# Visit http://localhost:3001 for live dashboard
+# Start all services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# Open dashboard
+# → http://localhost:5173
 ```
+
+**Login Credentials:**
+- Username: `developer`
+- Password: `dev123`
+
+---
+
+## 📚 Documentation
+
+> **New here?** Start with [**Installation Guide →**](docs/INSTALLATION.md)
+
+| Document | Purpose | Time |
+|----------|---------|------|
+| [**INSTALLATION.md**](docs/INSTALLATION.md) | Complete setup and deployment guide | 5 min |
+| [**DOCKER_QUICK_REFERENCE.md**](docs/DOCKER_QUICK_REFERENCE.md) | Common Docker commands cheat sheet | 2 min |
+| [**TEAMS.md**](docs/TEAMS.md) | Multi-team architecture overview | 10 min |
+| [**TOOLS.md**](docs/TOOLS.md) | Available MCP tools reference | 5 min |
+| [**DOCKER.md**](docs/DOCKER.md) | Advanced Docker configuration | 20 min |
+| [**INDEX.md**](docs/INDEX.md) | Complete documentation index | - |
+
+---
 
 ## What You Get
 
 ### 🔒 Zero-Trust Security
-- OAuth 2.1 authentication
-- Multi-level RBAC (user → role → tool → resource)
-- ML-powered prompt injection detection
-- Complete audit trail
+- **JWT Authentication** with configurable credentials
+- **Role-Based Access Control (RBAC)** - control who can access what
+- **Prompt Injection Detection** - ML-powered security
+- **Complete Audit Trail** - request logging with filtering
+- **Multi-level Authorization** - user → role → tool → resource
 
 ### 💪 Enterprise Reliability
-- Circuit breakers (prevent cascade failures)
-- Auto-failover between servers
-- Rate limiting (per user/tool/tenant)
-- Request queuing during spikes
+- **Circuit Breaker Pattern** - prevent cascade failures
+- **Automatic Retries** - exponential backoff strategy
+- **Health Checks** - continuous service monitoring
+- **Service Isolation** - independent team servers
+- **Graceful Degradation** - maintain uptime during issues
 
-### 📊 Full Observability
-- OpenTelemetry tracing
-- Prometheus metrics + Grafana dashboards
-- Real-time security dashboard
-- Cost tracking per team/tool/user
+### 📊 Full Observability  
+- **Real-time Dashboard** - live security and health monitoring
+- **Request Logging** - complete audit trail with filtering
+- **Live Metrics** - request duration, success rates, blocked attempts
+- **Security Events** - real-time alerts and monitoring
+- **Stream Logs** - Server-Sent Events for live updates
 
-### ☸️ Kubernetes Native
-- Custom operator (deploy MCP servers as K8s resources)
-- Token-aware auto-scaling
-- Multi-tenant isolation
-- Helm charts included
-
-## 5-Minute Production Deployment
-
-**Step 1:** Point gateway at your MCP servers
-```yaml
-# gateway-config.yaml
-servers:
-  - name: my-server
-    url: http://localhost:8000
-```
-
-**Step 2:** Define RBAC policies
-```yaml
-roles:
-  developer:
-    tools: [query_database, read_files]
-```
-
-**Step 3:** Deploy
-```bash
-docker-compose up gateway
-```
-
-**Done.** Your MCP server now has production-grade security and ops.
-
-## Why This Exists
-
-Deployed 50+ MCP servers at Walmart. Every production pain point is solved here:
-
-✅ Prevented 1,200+ prompt injection attempts  
-✅ 99.9% uptime despite 12 server crashes  
-✅ $47K saved via token usage optimization  
-✅ Zero security incidents in 6 months  
-
-## Live Demo
-
-[Video: 0 to production in 5 minutes]
-
-## Documentation
-
-- [Quick Start Guide](docs/quickstart.md)
-- [Security Model](docs/security.md)
-- [Production Deployment](docs/production.md)
-- [Cost Optimization](docs/costs.md)
-
-## Community
-
-- Discord: [Join here]
-- Twitter: [@adityamulik]
-- Docs: [docs.mcp-gateway.dev]
+### ⚙️ Multi-Team Architecture
+- **3 Independent MCP Servers** - Team A (Analytics), Team B (DevOps), Team C (Developer)
+- **Dynamic Tool Routing** - automatically routes to the correct team
+- **Tool Isolation** - clear role-based tool boundaries
+- **Separate Authentication** - per-team service management
+- **Easy Scaling** - add new teams without code changes
 
 ---
 
-⭐ **If this saves you from building auth/logging/monitoring for the 10th time, star the repo!**
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│      React Dashboard (Port 5173)                │
+│  Pages: Health • Security • Metrics • Logs      │
+└──────────────────┬──────────────────────────────┘
+                   │
+┌──────────────────↓──────────────────────────────┐
+│    Security Gateway (Port 3000)                 │
+│  Auth • RBAC • Validation • Retry • Logging     │
+└──────────────┬──────────────┬──────────────────┘
+               │              │
+        ┌──────↓──┐    ┌──────↓──┐    ┌──────┐
+        │ Team A  │    │ Team B  │    │TeamC │
+        │(8001)   │    │(8002)   │    │(8003)│
+        │Analytics│    │DevOps   │    │Devlpr│
+        │FastMCP  │    │FastMCP  │    │FastM │
+        └─────────┘    └─────────┘    └──────┘
+```
+
+---
+
+## Services & Ports
+
+| Service | Port | URL | Purpose |
+|---------|------|-----|---------|
+| **Dashboard** | 5173 | http://localhost:5173 | Web UI for monitoring |
+| **Gateway** | 3000 | http://localhost:3000 | API endpoint & security layer |
+| **Team A** | 8001 | http://localhost:8001 | Analytics tools |
+| **Team B** | 8002 | http://localhost:8002 | DevOps tools |
+| **Team C** | 8003 | http://localhost:8003 | Developer tools |
+
+---
+
+## Common Tasks
+
+### View Logs
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f gateway
+docker-compose logs -f dashboard
+docker-compose logs -f team-a
+
+# Use helper script
+./docker-run.sh logs
+```
+
+### Check Status
+```bash
+docker-compose ps
+./docker-run.sh test
+```
+
+### Stop Services
+```bash
+docker-compose down
+./docker-run.sh down
+```
+
+### Access Container Shell
+```bash
+# Gateway shell
+docker-compose exec gateway sh
+
+# Team A shell
+docker-compose exec team-a bash
+
+# Dashboard shell
+docker-compose exec dashboard sh
+```
+
+### Restart Specific Service
+```bash
+docker-compose restart gateway
+docker-compose restart dashboard
+docker-compose restart team-a
+```
+
+---
+
+## Available Tools
+
+### Team A - Analytics
+- `query_database` - Execute database queries
+- `generate_report` - Generate reports
+- `audit_logs` - Access audit logs
+
+### Team B - DevOps  
+- `deploy_application` - Deploy an application
+- `restart_service` - Restart a service
+- `update_configuration` - Update configuration
+
+### Team C - Developer
+- `list_directory` - List directory contents
+- `read_file` - Read file contents
+- `modify_permissions` - Modify file permissions
+- `user_management` - Manage users
+
+See [TOOLS.md](docs/TOOLS.md) for detailed tool reference and examples.
+
+---
+
+## Test the System
+
+### 1. Get Authentication Token
+```bash
+curl -X POST http://localhost:3000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"email":"developer","password":"dev123"}'
+```
+
+### 2. Call an MCP Tool
+```bash
+TOKEN="<your-token-here>"
+
+curl -X POST http://localhost:3000/mcp/tools/list_directory \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"arguments":{"path":"/tmp"}}'
+```
+
+### 3. View Logs
+```bash
+curl http://localhost:3000/logs \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+---
+
+## Troubleshooting
+
+### Services Won't Start
+```bash
+# Check logs
+docker-compose logs
+
+# Rebuild everything
+docker-compose down -v
+docker-compose build
+docker-compose up -d
+```
+
+### Dashboard Can't Connect
+```bash
+# Verify gateway is running
+curl http://localhost:3000/metrics
+
+# Restart gateway
+docker-compose restart gateway
+```
+
+### Port Already in Use
+```bash
+# Check what's using the port
+lsof -i :3000
+
+# Or change ports in docker-compose.yml
+# Change "3000:3000" to "3001:3000" etc.
+```
+
+**More help:** See [Installation Troubleshooting](docs/INSTALLATION.md#troubleshooting)
+
+---
+
+## Dashboard Pages
+
+### 🏥 MCP Health
+- Real-time status of all three team servers
+- Health check indicators
+- Tool discovery and validation
+- Auto-refresh every 30 seconds
+
+### 🔐 Security Events
+- Real-time security monitoring
+- Blocked requests and violations
+- User activities
+- Anomaly detection alerts
+
+### 📊 Metrics
+- Request counts and rates
+- Response duration statistics
+- Success/failure breakdown
+- Tool usage analytics
+
+### 📋 Request Logs
+- Complete audit trail
+- Filtering by user, tool, team, status
+- Real-time log streaming
+- Blocked request details
+
+---
+
+## Default Users
+
+| Username | Password | Role |
+|----------|----------|------|
+| `developer` | `dev123` | Developer |
+| `admin` | `admin123` | Administrator |
+| `analyst` | `analyst123` | Analyst |
+| `deployer` | `deploy123` | Deployer |
+
+---
+
+## Features
+
+✅ **Authentication & Authorization**
+- JWT token-based auth
+- Role-based access control
+- Fine-grained permission control
+
+✅ **Security**
+- Prompt injection detection
+- Anomaly detection
+- Request validation
+- Complete audit trail
+
+✅ **Reliability**
+- Circuit breaker pattern
+- Automatic retries with backoff
+- Health checks
+- Graceful error handling
+
+✅ **Observability**
+- Real-time dashboard
+- Request logging with filtering
+- Live security events
+- Performance metrics
+
+✅ **Multi-Team Support**
+- Independent team servers
+- Dynamic tool routing
+- Separate configurations
+- Easy scaling
+
+---
+
+## Architecture Highlights
+
+### 3-Layer Design
+1. **Dashboard** (React frontend) - Real-time monitoring UI
+2. **Gateway** (TypeScript backend) - Security, routing, logging
+3. **Team Servers** (Python FastMCP) - Actual tool implementations
+
+### Security Pipeline
+Request → Auth → RBAC → Resource Check → Prompt Filter → 
+Anomaly Detection → Circuit Breaker → Team Routing → Retry → Logging
+
+### Networking
+- Services communicate via Docker network
+- Encrypted token-based auth
+- Request/response logging
+- Error handling with retries
+
+---
+
+## Production Ready
+
+✅ Containerized with Docker  
+✅ Health checks and monitoring  
+✅ Error handling and retries  
+✅ Security best practices  
+✅ Comprehensive logging  
+✅ Multi-team architecture  
+✅ Scalable design  
+
+---
+
+## Next Steps
+
+1. **[Follow Installation Guide →](docs/INSTALLATION.md)**
+2. Open Dashboard: http://localhost:5173
+3. Login with `developer` / `dev123`
+4. Explore pages: Health, Security, Metrics, Logs
+5. Test tools via cURL or dashboard
+6. Read [TEAMS.md](docs/TEAMS.md) to understand architecture
+7. Review [TOOLS.md](docs/TOOLS.md) for tool reference
+
+---
+
+## Project Structure
+
+```
+docs/                   ← All documentation files
+gateway/               ← TypeScript security layer
+dashboard/             ← React web UI
+mcp_server/            ← Python FastMCP servers
+docker-compose.yml     ← Orchestration config
+docker-run.sh          ← Helper script
+```
+
+See [docs/INDEX.md](docs/INDEX.md) for complete file listing.
+
+---
+
+## Support
+
+- 📖 **Documentation:** [docs/INDEX.md](docs/INDEX.md)
+- 🆘 **Troubleshooting:** [docs/INSTALLATION.md#troubleshooting](docs/INSTALLATION.md#troubleshooting)
+- 🔧 **Docker Help:** [docs/DOCKER_QUICK_REFERENCE.md](docs/DOCKER_QUICK_REFERENCE.md)
+- 📋 **Tools Reference:** [docs/TOOLS.md](docs/TOOLS.md)
+
+---
+
+**Version:** 1.0.0  
+**Status:** Production Ready ✅  
+**Last Updated:** April 2026
+
+Made with ❤️ for production teams building with MCP

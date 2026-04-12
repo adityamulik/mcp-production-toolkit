@@ -16,24 +16,31 @@ export interface TeamsConfig {
 /**
  * Team Server Configuration
  * Each team operates its own MCP server on a dedicated port
+ * Uses service names when running in Docker Compose, localhost for local development
  */
+const getHostName = (): string => {
+  // Use environment variable to determine if running in Docker
+  const inDocker = process.env.IN_DOCKER === 'true';
+  return inDocker ? 'team-a' : 'localhost'; // Will be overridden per team
+};
+
 export const TEAM_SERVERS: TeamsConfig = {
   // Team A - Analytics (port 8001)
   'A': {
     port: 8001,
-    host: 'localhost',
+    host: process.env.IN_DOCKER === 'true' ? 'team-a' : 'localhost',
     tools: ['query_database', 'generate_report', 'audit_logs']
   },
   // Team B - DevOps (port 8002)
   'B': {
     port: 8002,
-    host: 'localhost',
+    host: process.env.IN_DOCKER === 'true' ? 'team-b' : 'localhost',
     tools: ['deploy_application', 'restart_service', 'update_configuration']
   },
   // Team C - Developer (port 8003)
   'C': {
     port: 8003,
-    host: 'localhost',
+    host: process.env.IN_DOCKER === 'true' ? 'team-c' : 'localhost',
     tools: ['read_file', 'list_directory', 'modify_permissions', 'user_management']
   }
 };

@@ -100,6 +100,7 @@ def list_tools():
 
 if __name__ == '__main__':
     port = int(os.getenv('MCP_PORT', 8001))
-    print(f"🚀 Team A (Analytics) HTTP Bridge starting on port {port}")
+    host = os.getenv('MCP_HOST', '0.0.0.0')
+    print(f"🚀 Team A (Analytics) HTTP Bridge starting on {host}:{port}")
     print(f"📋 Tools: {', '.join(TOOLS.keys())}")
-    app.run(host='localhost', port=port, debug=False)
+    app.run(host=host, port=port, debug=False)

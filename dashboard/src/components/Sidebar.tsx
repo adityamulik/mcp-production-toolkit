@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Server, Activity, BarChart3, LogOut, Menu, X, FileText } from 'lucide-react';
 import './Sidebar.css';
 

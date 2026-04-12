@@ -4,19 +4,27 @@
 
 set -e
 
+# Load environment variables from .env.local
+if [ -f .env.local ]; then
+  export $(cat .env.local | grep -v '#' | xargs)
+else
+  echo "⚠️  Warning: .env.local not found. Using environment variables or defaults."
+  echo "   Create .env.local from .env.example and set your credentials."
+fi
+
 # Get auth token for analyst (Team A access)
 echo "🔐 Getting auth token..."
-ANALYST_TOKEN=$(curl -s -X POST http://localhost:3000/oauth/token \
+ANALYST_TOKEN=$(curl -s -X POST "${OAUTH_SERVER_URL}${OAUTH_TOKEN_ENDPOINT}" \
   -H "Content-Type: application/json" \
-  -d '{"email":"analyst@company.com","password":"password"}' | jq -r .token)
+  -d "{\"email\":\"${ANALYST_EMAIL}\",\"password\":\"${ANALYST_PASSWORD}\"}" | jq -r .token)
 
-DEPLOYER_TOKEN=$(curl -s -X POST http://localhost:3000/oauth/token \
+DEPLOYER_TOKEN=$(curl -s -X POST "${OAUTH_SERVER_URL}${OAUTH_TOKEN_ENDPOINT}" \
   -H "Content-Type: application/json" \
-  -d '{"email":"deployer@company.com","password":"password"}' | jq -r .token)
+  -d "{\"email\":\"${DEPLOYER_EMAIL}\",\"password\":\"${DEPLOYER_PASSWORD}\"}" | jq -r .token)
 
-DEVELOPER_TOKEN=$(curl -s -X POST http://localhost:3000/oauth/token \
+DEVELOPER_TOKEN=$(curl -s -X POST "${OAUTH_SERVER_URL}${OAUTH_TOKEN_ENDPOINT}" \
   -H "Content-Type: application/json" \
-  -d '{"email":"developer@company.com","password":"password"}' | jq -r .token)
+  -d "{\"email\":\"${DEVELOPER_EMAIL}\",\"password\":\"${DEVELOPER_PASSWORD}\"}" | jq -r .token)
 
 echo "✅ Tokens acquired"
 echo ""

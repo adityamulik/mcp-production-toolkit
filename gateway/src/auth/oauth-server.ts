@@ -1,15 +1,31 @@
 import { Express, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-key';
+const SECRET = process.env.GATEWAY_JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key';
 
-// Mock user database
-
+// Load user credentials from environment variables
+// Format: DEVELOPER_EMAIL, DEVELOPER_PASSWORD, etc.
 const users = {
-  'developer': { password: 'dev123', role: 'developer', email: 'developer@company.com' },
-  'admin': { password: 'admin123', role: 'admin', email: 'admin@company.com' },
-  'analyst': { password: 'analyst123', role: 'analyst', email: 'analyst@company.com' },
-  'deployer': { password: 'deploy123', role: 'deployer', email: 'deployer@company.com' }
+  [process.env.DEVELOPER_EMAIL || 'developer']: {
+    password: process.env.DEVELOPER_PASSWORD || 'dev123',
+    role: 'developer',
+    email: process.env.DEVELOPER_EMAIL || 'developer@company.com'
+  },
+  [process.env.ADMIN_EMAIL || 'admin']: {
+    password: process.env.ADMIN_PASSWORD || 'admin123',
+    role: 'admin',
+    email: process.env.ADMIN_EMAIL || 'admin@company.com'
+  },
+  [process.env.ANALYST_EMAIL || 'analyst']: {
+    password: process.env.ANALYST_PASSWORD || 'analyst123',
+    role: 'analyst',
+    email: process.env.ANALYST_EMAIL || 'analyst@company.com'
+  },
+  [process.env.DEPLOYER_EMAIL || 'deployer']: {
+    password: process.env.DEPLOYER_PASSWORD || 'deploy123',
+    role: 'deployer',
+    email: process.env.DEPLOYER_EMAIL || 'deployer@company.com'
+  }
 };
 
 export function setupAuth(app: Express) {

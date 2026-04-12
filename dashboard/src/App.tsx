@@ -10,16 +10,16 @@ type PageType = 'health' | 'security' | 'metrics' | 'logs';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [username, setUsername] = useState('developer');
-  const [password, setPassword] = useState('dev123');
+  const [username, setUsername] = useState(localStorage.getItem('username') || '');
+  const [password, setPassword] = useState('');
   const [currentPage, setCurrentPage] = useState<PageType>('health');
 
   const login = async () => {
     try {
-      const response = await fetch('http://localhost:3000/oauth/token', {
+      const response = await fetch('http://localhost:3000/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email: username, password })
       });
 
       const data = await response.json();
