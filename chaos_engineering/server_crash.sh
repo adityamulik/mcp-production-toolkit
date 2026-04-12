@@ -11,10 +11,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Load environment variables from .env.local
+ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env.local"
+
+if [ -f "$ENV_FILE" ]; then
+  echo -e "${BLUE}📄 Loading credentials from .env.local...${NC}"
+  set -a
+  source "$ENV_FILE"
+  set +a
+  echo -e "${GREEN}✅ Loaded .env.local${NC}"
+else
+  echo -e "${YELLOW}⚠️  .env.local not found at $ENV_FILE${NC}"
+  echo -e "${YELLOW}Using default credentials${NC}"
+fi
+
+# Configuration - use env vars from .env.local
 API_URL="${API_URL:-http://localhost:3000}"
-AUTH_EMAIL="${AUTH_EMAIL:-analyst@company.com}"
-AUTH_PASSWORD="${AUTH_PASSWORD:-analyst123}"
+AUTH_EMAIL="${ANALYST_EMAIL}"
+AUTH_PASSWORD="${ANALYST_PASSWORD}"
+
+# Validate credentials are set
+if [ -z "$AUTH_EMAIL" ] || [ -z "$AUTH_PASSWORD" ]; then
+  echo -e "${RED}❌ Error: ANALYST_EMAIL and ANALYST_PASSWORD must be set in .env.local${NC}"
+  exit 1
+fi
 
 echo -e "${BLUE}🔐 Getting authentication token...${NC}"
 
