@@ -225,6 +225,13 @@ export default function MetricsView() {
             <div className="stat-label">Rate Limited</div>
           </div>
         </div>
+        <div className="quick-stat failures">
+          <div className="stat-icon">💥</div>
+          <div className="stat-content">
+            <div className="stat-value">{Object.values(teamCBMetrics).reduce((sum, m) => sum + (m.failureCount || 0), 0)}</div>
+            <div className="stat-label">CB Failures</div>
+          </div>
+        </div>
       </div>
 
       {/* Request Metrics Chart */}

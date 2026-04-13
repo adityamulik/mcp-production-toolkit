@@ -63,6 +63,10 @@
   border-left: 4px solid #8b5cf6;
 }
 
+.quick-stat.failures {
+  border-left: 4px solid #dc2626;
+}
+
 .stat-icon {
   font-size: 20px;
   width: 28px;
@@ -99,6 +103,11 @@
 .quick-stat.ratelimited .stat-icon {
   background: #ede9fe;
   color: #8b5cf6;
+}
+
+.quick-stat.failures .stat-icon {
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .stat-content {
