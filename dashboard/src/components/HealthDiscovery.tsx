@@ -110,7 +110,7 @@ const HealthDiscovery: React.FC = () => {
     const interval = setInterval(() => {
       teams.forEach(team => checkHealth(team));
       discoverTools();
-    }, 30000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -131,7 +131,7 @@ const HealthDiscovery: React.FC = () => {
   return (
     <div className="health-discovery">
       <div className="health-header">
-        <h2>🏥 MCP Health & Discovery</h2>
+        <h2>MCP Health & Discovery</h2>
         <div className="health-summary">
           {healthyCount}/{teams.length} servers healthy
         </div>
@@ -167,13 +167,6 @@ const HealthDiscovery: React.FC = () => {
             {team.tools.length > 0 && (
               <div className="tools-list">
                 <h4>Tools ({team.tools.length})</h4>
-                <ul>
-                  {team.tools.map(tool => (
-                    <li key={tool}>
-                      <code>{tool}</code>
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
           </div>
@@ -203,7 +196,7 @@ const HealthDiscovery: React.FC = () => {
 
       <div className="discovery-info">
         <AlertCircle size={16} />
-        <span>Health checks run every 30 seconds</span>
+        <span>Health checks run every 5 seconds</span>
       </div>
     </div>
   );

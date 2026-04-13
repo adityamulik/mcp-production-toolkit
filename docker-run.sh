@@ -40,6 +40,7 @@ Usage: ./docker-run.sh [COMMAND] [SERVICE]
 Commands:
   up [SERVICE]       Start services (all if no service specified)
   up-only SERVICE    Start a single service without dependencies
+  rebuild-up [SVC]   Rebuild and restart (picks up code changes)
   down [SERVICE]     Stop services (all if no service specified)
   logs [SERVICE]     View logs (all services if no service specified)
   ps                 Show status of all running services
@@ -74,6 +75,12 @@ Examples:
 
   # Restart dashboard
   ./docker-run.sh restart dashboard
+
+  # Rebuild all services and restart
+  ./docker-run.sh rebuild-up
+
+  # Rebuild dashboard and restart (picks up code changes)
+  ./docker-run.sh rebuild-up dashboard
 
   # Open shell in team-a
   ./docker-run.sh shell team-a
@@ -221,6 +228,28 @@ case "$CMD" in
             docker-compose build
             print_success "All images built"
         fi
+        ;;
+    
+    rebuild-up)
+        if [ -n "$SERVICE" ]; then
+            validate_service "$SERVICE"
+            SERVICES=$(get_service_deps "$SERVICE")
+            print_header "Rebuilding and restarting $SERVICE (with dependencies)"
+            docker-compose build $SERVICES
+            docker-compose up -d $SERVICES
+            print_success "$SERVICE rebuilt and restarted"
+        else
+            print_header "Rebuilding and restarting ALL Services"
+            docker-compose build
+            docker-compose up -d
+            print_success "All services rebuilt and restarted"
+        fi
+        sleep 3
+        test_services
+        echo ""
+        echo -e "${GREEN}Services running at:${NC}"
+        echo "  Gateway:   http://localhost:3000"
+        echo "  Dashboard: http://localhost:5173"
         ;;
     
     shell)

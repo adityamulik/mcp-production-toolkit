@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import Sidebar from './components/Sidebar';
+import Header from './components/Header';
 import HealthDiscovery from './components/HealthDiscovery';
-import SecurityDashboard from './components/SecurityDashboard';
 import MetricsView from './components/MetricsView';
 import { Logs } from './components/Logs';
-import CircuitBreakerPanel from './components/CircuitBreakerPanel';
-import RetriesPanel from './components/RetriesPanel';
 import './App.css';
 
-type PageType = 'health' | 'security' | 'metrics' | 'logs' | 'circuit-breaker' | 'retries';
+type PageType = 'health' | 'metrics' | 'logs';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -49,33 +47,30 @@ function App() {
 
   if (!token) {
     return (
-      <div className="login-container">
-        <div className="login-box">
-          <h1>🛡️ MCP Gateway</h1>
-          <p className="login-subtitle">Production Toolkit</p>
-          <div className="login-form">
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && login()}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && login()}
-            />
-            <button onClick={login}>Login</button>
-            <div className="login-help">
-              <p>Available test users:</p>
-              <ul>
-                <li>Use credentials from <code>.env.local</code></li>
-                <li>Roles: <code>developer</code>, <code>admin</code>, <code>analyst</code>, <code>deployer</code></li>
-                <li>See CREDENTIALS.md for setup</li>
-              </ul>
+      <div className="App">
+        <Header 
+          username=""
+          onLogout={logout}
+        />
+        <div className="login-container">
+          <div className="login-box">
+            <h1>MCP Production KIT Demo</h1>
+            <div className="login-form">
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && login()}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && login()}
+              />
+              <button onClick={login}>Login</button>
             </div>
           </div>
         </div>
@@ -87,24 +82,20 @@ function App() {
 
   return (
     <div className="App">
-      <header>
-        <h1>🛡️ MCP Gateway</h1>
-      </header>
+      <Header 
+        username={storedUsername}
+        onLogout={logout}
+      />
       
       <Sidebar 
         activePage={currentPage}
         onPageChange={setCurrentPage}
-        username={storedUsername}
-        onLogout={logout}
       />
 
       <main className="main-content">
         {currentPage === 'health' && <HealthDiscovery />}
-        {currentPage === 'security' && <SecurityDashboard />}
         {currentPage === 'metrics' && <MetricsView />}
         {currentPage === 'logs' && <Logs />}
-        {currentPage === 'circuit-breaker' && <CircuitBreakerPanel />}
-        {currentPage === 'retries' && <RetriesPanel />}
       </main>
     </div>
   );
