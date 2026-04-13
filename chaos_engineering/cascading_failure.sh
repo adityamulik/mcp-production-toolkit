@@ -57,23 +57,26 @@ export TOKEN
 
 # Configuration
 SERVERS=("mcp-team-a" "mcp-team-b" "mcp-team-c")
-REQUEST_RATE=0.3  # seconds between requests
+REQUEST_RATE=0.1  # seconds between requests (faster for more failures)
 
 echo ""
 echo -e "${BLUE}🎯 Cascading Failure Scenario${NC}"
 echo "This test demonstrates what happens when multiple services fail sequentially"
+echo "Circuit Breaker Threshold: 3 failures → OPEN"
 echo ""
 
-# Start load generator in background
-echo -e "${BLUE}📊 Starting continuous load generator...${NC}"
+# Start load generator in background (FASTER - 10 requests/second)
+echo -e "${BLUE}📊 Starting aggressive load generator...${NC}"
 REQUEST_COUNT=0
 while true; do
-  curl -s -X POST ${API_URL}/mcp/tools/query_database \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{"arguments": {"query": "SELECT * FROM analytics"}}' > /dev/null
-  REQUEST_COUNT=$((REQUEST_COUNT + 1))
-  echo -e "${BLUE}[Request #$REQUEST_COUNT]${NC}"
+  for i in {1..3}; do
+    curl -s -X POST ${API_URL}/mcp/tools/query_database \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"arguments": {"query": "SELECT * FROM analytics"}}' > /dev/null &
+  done
+  REQUEST_COUNT=$((REQUEST_COUNT + 3))
+  echo -e "${BLUE}[Requests: $REQUEST_COUNT total]${NC}"
   sleep $REQUEST_RATE
 done &
 

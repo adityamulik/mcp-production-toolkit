@@ -30,7 +30,7 @@ export class CircuitBreaker {
 
   constructor(config: Partial<CircuitBreakerConfig> = {}) {
     this.config = {
-      failureThreshold: config.failureThreshold ?? 5,
+      failureThreshold: config.failureThreshold ?? 3,
       successThreshold: config.successThreshold ?? 2,
       timeout: config.timeout ?? 30000
     };
@@ -71,8 +71,6 @@ export class CircuitBreaker {
    * Record successful request
    */
   public recordSuccess(): void {
-    this.failedRequests = [];
-
     const timestamp = new Date().toISOString();
 
     if (this.circuitState.state === CircuitState.HALF_OPEN) {
@@ -94,9 +92,8 @@ export class CircuitBreaker {
       } catch (e) {
         // Metrics not available
       }
-    } else if (this.circuitState.state === CircuitState.CLOSED) {
-      this.circuitState.failureCount = 0;
     }
+    // NOTE: Do NOT reset failure count in CLOSED state - persistent counter until circuit opens
   }
 
   /**
@@ -193,6 +190,7 @@ export class CircuitBreaker {
     if (newState === CircuitState.CLOSED) {
       this.circuitState.failureCount = 0;
       this.circuitState.successCount = 0;
+      this.failedRequests = []; // Clear failure history on recovery
     } else if (newState === CircuitState.HALF_OPEN) {
       this.circuitState.successCount = 0;
     }
@@ -202,7 +200,22 @@ export class CircuitBreaker {
 }
 
 export const mcpCircuitBreaker = new CircuitBreaker({
-  failureThreshold: 5,
+  failureThreshold: 3,
   successThreshold: 2,
   timeout: 30000
 });
+
+// Per-team circuit breakers for better isolation
+const teamCircuitBreakers: Record<string, CircuitBreaker> = {};
+
+export function getTeamCircuitBreaker(team: string): CircuitBreaker {
+  if (!teamCircuitBreakers[team]) {
+    console.log(`🆕 Creating circuit breaker for team: ${team}`);
+    teamCircuitBreakers[team] = new CircuitBreaker({
+      failureThreshold: 3,
+      successThreshold: 2,
+      timeout: 30000
+    });
+  }
+  return teamCircuitBreakers[team];
+}

@@ -11,6 +11,22 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Cleanup function - runs on exit
+cleanup() {
+  echo ""
+  echo -e "${BLUE}🧹 Cleaning up...${NC}"
+  if [ ! -z "$LOAD_GEN_PID" ] && kill -0 $LOAD_GEN_PID 2>/dev/null; then
+    echo -e "${YELLOW}Killing load generator (PID: $LOAD_GEN_PID)...${NC}"
+    kill -SIGTERM $LOAD_GEN_PID 2>/dev/null
+    sleep 1
+    kill -SIGKILL $LOAD_GEN_PID 2>/dev/null || true
+  fi
+  echo -e "${GREEN}✅ Cleanup complete${NC}"
+}
+
+# Set trap to run cleanup on exit
+trap cleanup EXIT
+
 # Load environment variables from .env.local
 ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env.local"
 
@@ -60,49 +76,68 @@ export TOKEN
 
 # Configuration
 CONTAINER_NAME="mcp-team-a"
-KILL_DELAY=10  # seconds before killing the container
-RESTART_DELAY=15  # seconds before restarting the container
+KILL_DELAY=5   # seconds before killing the container
+RESTART_DELAY=10  # seconds before restarting the container
+TEST_DURATION=40  # total test duration
 
 # Start load generator in the background
 echo -e "${BLUE}📊 Starting load generator...${NC}"
-while true; do
-  curl -s -X POST ${API_URL}/mcp/tools/query_database \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{"arguments": {"query": "SELECT * FROM analytics"}}' \
-    | jq -r '.result.status // .error' 
-  sleep 0.5
-done &
+(
+  COUNT=0
+  while [ $COUNT -lt 100 ]; do
+    curl -s -X POST ${API_URL}/mcp/tools/query_database \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"arguments": {"query": "SELECT * FROM analytics"}}' \
+      2>/dev/null | jq -r '.result.status // .error // "OK"' 
+    COUNT=$((COUNT + 1))
+    sleep 0.3
+  done
+) &
 
 LOAD_GEN_PID=$!
 echo -e "${YELLOW}Load generator started (PID: $LOAD_GEN_PID)${NC}"
 echo ""
 
 # Schedule container kill after delay
+echo -e "${BLUE}⏱️  Waiting ${KILL_DELAY}s before killing container...${NC}"
 sleep $KILL_DELAY
-echo -e "${RED}💥 KILLING CONTAINER: $CONTAINER_NAME${NC}"
-docker kill $CONTAINER_NAME
 
-echo -e "${RED}Container killed. Observe the load generator output above...${NC}"
-echo -e "${YELLOW}Waiting $RESTART_DELAY seconds before restart...${NC}"
+echo ""
+echo -e "${RED}═══════════════════════════════════════${NC}"
+echo -e "${RED}💥 KILLING CONTAINER: $CONTAINER_NAME${NC}"
+echo -e "${RED}═══════════════════════════════════════${NC}"
+docker kill $CONTAINER_NAME 2>/dev/null
+
+echo -e "${RED}Container killed. Observe request failures...${NC}"
+echo -e "${YELLOW}Waiting ${RESTART_DELAY}s before restart...${NC}"
 sleep $RESTART_DELAY
 
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════${NC}"
 echo -e "${GREEN}🔄 RESTARTING CONTAINER: $CONTAINER_NAME${NC}"
-docker start $CONTAINER_NAME
+echo -e "${GREEN}═══════════════════════════════════════${NC}"
+docker start $CONTAINER_NAME 2>/dev/null
 
-echo -e "${GREEN}✅ Container restarted. Monitor circuit breaker recovery...${NC}"
-echo -e "${YELLOW}Dashboard: Circuit Breaker page should show transition from OPEN → HALF_OPEN → CLOSED${NC}"
+echo -e "${GREEN}✅ Container restarted. Monitoring recovery...${NC}"
 echo ""
 
-# Keep monitoring for another 30 seconds
-sleep 30
-echo -e "${BLUE}Test complete. Killing load generator...${NC}"
-kill $LOAD_GEN_PID 2>/dev/null || true
+# Keep monitoring for remaining duration
+REMAINING=$((TEST_DURATION - KILL_DELAY - RESTART_DELAY - 5))
+if [ $REMAINING -gt 0 ]; then
+  echo -e "${YELLOW}Monitoring for ${REMAINING}s...${NC}"
+  sleep $REMAINING
+fi
 
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════${NC}"
 echo -e "${GREEN}✅ Chaos test finished${NC}"
+echo -e "${GREEN}═══════════════════════════════════════${NC}"
 echo ""
 echo -e "${YELLOW}Summary:${NC}"
 echo -e "  1. Kill delay: ${KILL_DELAY}s"
 echo -e "  2. Restart delay: ${RESTART_DELAY}s"
 echo -e "  3. Container: $CONTAINER_NAME"
-echo -e "  4. Check Dashboard → Circuit Breaker for state transitions"
+echo -e "  4. Check Dashboard → Metrics page for Circuit Breaker state transitions"
+echo -e "  5. Expected: CLOSED → OPEN (after failures) → HALF_OPEN → CLOSED (recovery)"
+echo ""
