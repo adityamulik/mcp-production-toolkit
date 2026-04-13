@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { CheckCircle, AlertCircle, Zap, Shield, AlertTriangle, Activity } from 'lucide-react';
+import { CheckCircle, AlertCircle, Zap } from 'lucide-react';
 import './MetricsView.css';
 
 interface MetricPoint {
   time: string;
-  requests: number;
+  timestamp: number; // Unix timestamp in ms
+  success: number;
   blocked: number;
   anomalies: number;
+  rateLimited: number;
+  retried: number;
 }
 
 interface CircuitBreakerMetrics {
@@ -18,16 +21,6 @@ interface CircuitBreakerMetrics {
   recentFailures: number;
 }
 
-interface SecurityEvent {
-  type: 'blocked' | 'allowed' | 'anomaly';
-  timestamp: number;
-  userId: string;
-  tool: string;
-  reason?: string;
-  severity?: string;
-  details?: any;
-}
-
 interface SecurityStats {
   blocked: number;
   allowed: number;
@@ -36,10 +29,27 @@ interface SecurityStats {
 }
 
 export default function MetricsView() {
-  const [metrics, setMetrics] = useState<MetricPoint[]>([]);
+  const [allMetrics, setAllMetrics] = useState<MetricPoint[]>([]);
+  const [timeRange, setTimeRange] = useState<'1s' | '30s' | '1m' | '30m' | '1h' | '12h' | '24h'>('30m');
   const [cbMetrics, setCbMetrics] = useState<CircuitBreakerMetrics | null>(null);
-  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [securityStats, setSecurityStats] = useState<SecurityStats>({ blocked: 0, allowed: 0, anomalies: 0, total: 0 });
+
+  // Filter metrics based on time range
+  const getFilteredMetrics = () => {
+    const now = Date.now();
+    const timeRanges: Record<string, number> = {
+      '1s': 1000,
+      '30s': 30000,
+      '1m': 60000,
+      '30m': 30 * 60000,
+      '1h': 60 * 60000,
+      '12h': 12 * 60 * 60000,
+      '24h': 24 * 60 * 60000
+    };
+    
+    const cutoffTime = now - timeRanges[timeRange];
+    return allMetrics.filter(m => m.timestamp >= cutoffTime);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -65,14 +75,11 @@ export default function MetricsView() {
       .then(data => data && setCbMetrics(data.circuitBreaker))
       .catch(e => console.error('Failed to fetch initial circuit breaker metrics:', e));
 
-    // Connect to SSE for real-time security events
+    // Connect to SSE for real-time security stats updates
     const eventSource = new EventSource(`${apiUrl}/events`);
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      if (data.type === 'initial') {
-        setSecurityEvents(data.events);
-      } else {
-        setSecurityEvents(prev => [data, ...prev].slice(0, 50));
+      if (data.type !== 'initial') {
         setSecurityStats(prev => ({
           ...prev,
           [data.type]: prev[data.type as keyof SecurityStats] + 1,
@@ -90,18 +97,44 @@ export default function MetricsView() {
         const stats = await res.json();
         console.log('📊 Metrics: Fetched stats:', stats);
 
+        // Update security stats from API response too
+        if (stats.allowed !== undefined || stats.blocked !== undefined || stats.anomalies !== undefined) {
+          setSecurityStats(prev => ({
+            allowed: stats.allowed ?? prev.allowed,
+            blocked: stats.blocked ?? prev.blocked,
+            anomalies: stats.anomalies ?? prev.anomalies,
+            total: (stats.allowed ?? 0) + (stats.blocked ?? 0) + (stats.anomalies ?? 0)
+          }));
+        }
+
         const now = new Date();
+        const timestamp = now.getTime();
         const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-        setMetrics(prev => [
-          ...prev.slice(-20), // Keep last 20 points
-          {
+        setAllMetrics(prev => {
+          const newMetric = {
             time: timeStr,
-            requests: stats.total || 0,
-            blocked: stats.blocked || 0,
-            anomalies: stats.anomalies || 0
+            timestamp,
+            success: stats.allowed ?? stats.success ?? 0,
+            blocked: stats.blocked ?? 0,
+            anomalies: stats.anomalies ?? 0,
+            rateLimited: stats.rateLimited ?? 0,
+            retried: stats.retried ?? 0
+          };
+          
+          // Keep metrics for 24 hours, removing old ones
+          const cutoffTime = timestamp - (24 * 60 * 60 * 1000);
+          const filtered = prev.filter(m => m.timestamp >= cutoffTime);
+          
+          const lastMetric = filtered[filtered.length - 1];
+          const isDifferentMinute = !lastMetric || lastMetric.time !== timeStr;
+          
+          if (isDifferentMinute) {
+            return [...filtered, newMetric];
+          } else {
+            return [...filtered.slice(0, -1), newMetric];
           }
-        ]);
+        });
       } catch (error) {
         console.error('Failed to fetch metrics:', error);
       }
@@ -129,125 +162,120 @@ export default function MetricsView() {
 
   return (
     <div className="metrics-view">
-      <h2>Request Metrics</h2>
+      <div className="metrics-header">
+        <h2>📊 Request Metrics & Security</h2>
+      </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={metrics}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-          <XAxis dataKey="time" stroke="#888" />
-          <YAxis stroke="#888" />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#222', border: '1px solid #444' }}
-          />
-          <Legend />
-          <Line type="monotone" dataKey="requests" stroke="#4af" strokeWidth={2} name="Total" />
-          <Line type="monotone" dataKey="blocked" stroke="#f44" strokeWidth={2} name="Blocked" />
-          <Line type="monotone" dataKey="anomalies" stroke="#fa4" strokeWidth={2} name="Anomalies" />
-        </LineChart>
-      </ResponsiveContainer>
-
-      <div className="metrics-summary">
-        <h3>Last 5 Minutes Summary</h3>
-        {metrics.length > 0 && (
-          <div className="summary-grid">
-            <div>Total Requests: <strong>{metrics[metrics.length - 1]?.requests || 0}</strong></div>
-            <div>Blocked: <strong className="text-red">{metrics[metrics.length - 1]?.blocked || 0}</strong></div>
-            <div>Anomalies: <strong className="text-yellow">{metrics[metrics.length - 1]?.anomalies || 0}</strong></div>
+      {/* Summary Stats */}
+      <div className="quick-stats-grid">
+        <div className="quick-stat success">
+          <div className="stat-icon">✓</div>
+          <div className="stat-content">
+            <div className="stat-value">{securityStats.allowed}</div>
+            <div className="stat-label">Success</div>
           </div>
+        </div>
+        <div className="quick-stat blocked">
+          <div className="stat-icon">⚠</div>
+          <div className="stat-content">
+            <div className="stat-value">{securityStats.blocked}</div>
+            <div className="stat-label">Blocked</div>
+          </div>
+        </div>
+        <div className="quick-stat anomaly">
+          <div className="stat-icon">🔍</div>
+          <div className="stat-content">
+            <div className="stat-value">{securityStats.anomalies}</div>
+            <div className="stat-label">Anomalies</div>
+          </div>
+        </div>
+        <div className="quick-stat retried">
+          <div className="stat-icon">↻</div>
+          <div className="stat-content">
+            <div className="stat-value">{allMetrics.length > 0 ? allMetrics[allMetrics.length - 1]?.retried || 0 : 0}</div>
+            <div className="stat-label">Retried</div>
+          </div>
+        </div>
+        <div className="quick-stat ratelimited">
+          <div className="stat-icon">🚫</div>
+          <div className="stat-content">
+            <div className="stat-value">{allMetrics.length > 0 ? allMetrics[allMetrics.length - 1]?.rateLimited || 0 : 0}</div>
+            <div className="stat-label">Rate Limited</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Request Metrics Chart */}
+      <div className="chart-card">
+        <div className="chart-header">
+          <h3>Request Trend</h3>
+          <div className="time-range-selector">
+            {(['1s', '30s', '1m', '30m', '1h', '12h', '24h'] as const).map(range => (
+              <button
+                key={range}
+                className={`time-range-btn ${timeRange === range ? 'active' : ''}`}
+                onClick={() => setTimeRange(range)}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+        {getFilteredMetrics().length > 0 ? (
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={getFilteredMetrics()}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="time" stroke="#6b7280" style={{fontSize: '12px'}} />
+              <YAxis stroke="#6b7280" style={{fontSize: '12px'}} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                labelStyle={{ color: '#1a1a1a' }}
+              />
+              <Legend wrapperStyle={{fontSize: '12px'}} />
+              <Line type="monotone" dataKey="success" stroke="#10b981" strokeWidth={2} name="Success" dot={{r: 3}} />
+              <Line type="monotone" dataKey="blocked" stroke="#ef4444" strokeWidth={2} name="Blocked" dot={{r: 3}} />
+              <Line type="monotone" dataKey="anomalies" stroke="#f59e0b" strokeWidth={2} name="Anomalies" dot={{r: 3}} />
+              <Line type="monotone" dataKey="retried" stroke="#3b82f6" strokeWidth={2} name="Retried" dot={{r: 3}} />
+              <Line type="monotone" dataKey="rateLimited" stroke="#8b5cf6" strokeWidth={2} name="Rate Limited" dot={{r: 3}} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="chart-loading">Loading metrics...</div>
         )}
       </div>
 
+      {/* Circuit Breaker */}
       {cbMetrics && (
-        <div className="circuit-breaker-status">
-          <h3>Circuit Breaker Status</h3>
-          <div className="cb-status-container">
-            <div className={`cb-state ${cbMetrics.state}`}>
-              {cbMetrics.state === 'closed' && <CheckCircle className="cb-icon" />}
-              {cbMetrics.state === 'open' && <AlertCircle className="cb-icon" />}
-              {cbMetrics.state === 'half_open' && <Zap className="cb-icon" />}
-              <div className="cb-info">
-                <span className="cb-state-label">
-                  {cbMetrics.state === 'closed' ? 'CLOSED' : cbMetrics.state === 'open' ? 'OPEN' : 'HALF-OPEN'}
-                </span>
-                <div className="cb-details">
-                  <span>Failures: {cbMetrics.failureCount}</span>
-                  <span>Recent (60s): {cbMetrics.recentFailures}</span>
-                  {cbMetrics.timeSincLastFailure && (
-                    <span>Last Failure: {(cbMetrics.timeSincLastFailure / 1000).toFixed(1)}s ago</span>
-                  )}
+        <div className="panel-card circuit-breaker-panel">
+          <h3>🔌 Circuit Breaker</h3>
+          <div className={`cb-status-display status-${cbMetrics.state}`}>
+            <div className="cb-badge">
+              {cbMetrics.state === 'closed' && <CheckCircle className="icon" />}
+              {cbMetrics.state === 'open' && <AlertCircle className="icon" />}
+              {cbMetrics.state === 'half_open' && <Zap className="icon" />}
+            </div>
+            <div className="cb-details">
+              <div className="cb-state-text">{cbMetrics.state.toUpperCase()}</div>
+              <div className="cb-metrics-grid">
+                <div className="cb-metric-item">
+                  <span className="label">Failures</span>
+                  <span className="value">{cbMetrics.failureCount}</span>
                 </div>
+                <div className="cb-metric-item">
+                  <span className="label">Recent (60s)</span>
+                  <span className="value">{cbMetrics.recentFailures}</span>
+                </div>
+                {cbMetrics.timeSincLastFailure && (
+                  <div className="cb-metric-item">
+                    <span className="label">Last Failure</span>
+                    <span className="value">{(cbMetrics.timeSincLastFailure / 1000).toFixed(1)}s</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
-
-      <div className="security-events-section">
-        <h3>Security Events</h3>
-        
-        <div className="security-stats-grid">
-          <div className="stat-card blocked">
-            <Shield size={24} />
-            <div>
-              <div className="stat-value">{securityStats.blocked}</div>
-              <div className="stat-label">Blocked</div>
-            </div>
-          </div>
-
-          <div className="stat-card allowed">
-            <CheckCircle size={24} />
-            <div>
-              <div className="stat-value">{securityStats.allowed}</div>
-              <div className="stat-label">Allowed</div>
-            </div>
-          </div>
-
-          <div className="stat-card anomaly">
-            <AlertTriangle size={24} />
-            <div>
-              <div className="stat-value">{securityStats.anomalies}</div>
-              <div className="stat-label">Anomalies</div>
-            </div>
-          </div>
-
-          <div className="stat-card total">
-            <Activity size={24} />
-            <div>
-              <div className="stat-value">{securityStats.total}</div>
-              <div className="stat-label">Total (5min)</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="events-list">
-          {securityEvents.length === 0 ? (
-            <p className="no-events">No security events</p>
-          ) : (
-            securityEvents.map((event, idx) => (
-              <div key={idx} className={`event event-${event.type}`}>
-                <div className="event-header">
-                  <span className={`event-badge ${event.type}`}>
-                    {event.type.toUpperCase()}
-                  </span>
-                  <span className="event-time">
-                    {new Date(event.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-                <div className="event-body">
-                  <div><strong>User:</strong> {event.userId}</div>
-                  <div><strong>Tool:</strong> {event.tool}</div>
-                  {event.reason && <div><strong>Reason:</strong> {event.reason}</div>}
-                  {event.severity && (
-                    <div><strong>Severity:</strong> 
-                      <span className={`severity-${event.severity}`}> {event.severity.toUpperCase()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
     </div>
   );
 }

@@ -407,6 +407,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       const requestId = `${user.email}-${tool}-${Date.now()}`;
       console.log(`📤 Executing MCP request with retry policy`, { requestId, team, tool });
       
+      let retryCount = 0;
       mcpResponse = await mcpRetryPolicy.executeWithStatus(
         requestId,
         async () => {
@@ -423,7 +424,19 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
           };
         },
         (attempt, delay, status) => {
+          retryCount++;
           console.log(`Team ${team} request for ${tool} - attempt ${attempt}, status ${status}, retry in ${delay}ms`);
+          
+          // Log retry attempt as security event
+          const retryEvent: SecurityEvent = {
+            type: 'retried',
+            timestamp: Date.now(),
+            userId: user.email,
+            tool,
+            reason: `Retry attempt ${attempt} (status ${status})`,
+            details: { team, delay, status, currentAttempt: attempt }
+          };
+          eventBroadcaster.logEvent(retryEvent);
         }
       );
       

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 
 export interface SecurityEvent {
-  type: 'blocked' | 'allowed' | 'anomaly';
+  type: 'blocked' | 'allowed' | 'anomaly' | 'retried' | 'rate_limited';
   timestamp: number;
   userId: string;
   tool: string;
@@ -10,14 +10,24 @@ export interface SecurityEvent {
   details?: any;
 }
 
+interface MetricsSnapshot {
+  allowed: number;
+  blocked: number;
+  anomalies: number;
+  retried: number;
+  rate_limited: number;
+  total: number;
+}
+
 class EventBroadcaster extends EventEmitter {
   private eventLog: SecurityEvent[] = [];
+  private metricsSnapshots: Array<{ timestamp: number; metrics: MetricsSnapshot }> = [];
   
   logEvent(event: SecurityEvent) {
     this.eventLog.push(event);
     
-    // Keep last 1000 events
-    if (this.eventLog.length > 1000) {
+    // Keep last 10000 events (about 1 day of data)
+    if (this.eventLog.length > 10000) {
       this.eventLog.shift();
     }
     
@@ -31,13 +41,38 @@ class EventBroadcaster extends EventEmitter {
   
   getStats() {
     const now = Date.now();
-    const last5min = this.eventLog.filter(e => e.timestamp > now - 300000);
     
-    const blocked = last5min.filter(e => e.type === 'blocked').length;
-    const allowed = last5min.filter(e => e.type === 'allowed').length;
-    const anomalies = last5min.filter(e => e.type === 'anomaly').length;
+    // Count all events (no time limit for global stats)
+    const allEvents = this.eventLog;
     
-    return { blocked, allowed, anomalies, total: last5min.length };
+    const stats: MetricsSnapshot = {
+      allowed: allEvents.filter(e => e.type === 'allowed').length,
+      blocked: allEvents.filter(e => e.type === 'blocked').length,
+      anomalies: allEvents.filter(e => e.type === 'anomaly').length,
+      retried: allEvents.filter(e => e.type === 'retried').length,
+      rate_limited: allEvents.filter(e => e.type === 'rate_limited').length,
+      total: allEvents.length
+    };
+    
+    return stats;
+  }
+  
+  // Get stats for a specific time window (in ms)
+  getStatsWindow(windowMs: number = 300000) {
+    const now = Date.now();
+    const cutoff = now - windowMs;
+    const windowEvents = this.eventLog.filter(e => e.timestamp > cutoff);
+    
+    const stats: MetricsSnapshot = {
+      allowed: windowEvents.filter(e => e.type === 'allowed').length,
+      blocked: windowEvents.filter(e => e.type === 'blocked').length,
+      anomalies: windowEvents.filter(e => e.type === 'anomaly').length,
+      retried: windowEvents.filter(e => e.type === 'retried').length,
+      rate_limited: windowEvents.filter(e => e.type === 'rate_limited').length,
+      total: windowEvents.length
+    };
+    
+    return stats;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import HealthDiscovery from './components/HealthDiscovery';
@@ -12,7 +12,35 @@ function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
   const [password, setPassword] = useState('');
-  const [currentPage, setCurrentPage] = useState<PageType>('health');
+  const [currentPage, setCurrentPage] = useState<PageType>(getPageFromUrl());
+
+  // Get page from URL path
+  function getPageFromUrl(): PageType {
+    const path = window.location.pathname;
+    if (path.includes('/metrics')) return 'metrics';
+    if (path.includes('/activity')) return 'logs';
+    return 'health';
+  }
+
+  // Update page and URL together
+  const handlePageChange = (page: PageType) => {
+    setCurrentPage(page);
+    const pathMap: Record<PageType, string> = {
+      health: '/',
+      metrics: '/metrics',
+      logs: '/activity'
+    };
+    window.history.pushState({}, '', pathMap[page]);
+  };
+
+  // Listen for back/forward button navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPage(getPageFromUrl());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const login = async () => {
     try {
@@ -89,7 +117,7 @@ function App() {
       
       <Sidebar 
         activePage={currentPage}
-        onPageChange={setCurrentPage}
+        onPageChange={handlePageChange}
       />
 
       <main className="main-content">
