@@ -25,11 +25,11 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker-compose build --no-cache
+          docker compose build --no-cache
 
       - name: Start services
         run: |
-          docker-compose up -d
+          docker compose up -d
           echo "Services starting..."
           sleep 5
 
@@ -40,14 +40,14 @@ jobs:
             echo "Attempt $i/60..."
             
             # Check gateway
-            if docker-compose ps gateway | grep -q "healthy"; then
+            if docker compose ps gateway | grep -q "healthy"; then
               echo "✓ Gateway is healthy"
             else
               echo "✗ Gateway not yet healthy"
             fi
             
             # Check dashboard
-            if docker-compose ps dashboard | grep -q "healthy"; then
+            if docker compose ps dashboard | grep -q "healthy"; then
               echo "✓ Dashboard is healthy"
             else
               echo "✗ Dashboard not yet healthy"
@@ -55,7 +55,7 @@ jobs:
             
             # Check team servers
             for team in team-a team-b team-c; do
-              if docker-compose ps $team | grep -q "healthy"; then
+              if docker compose ps $team | grep -q "healthy"; then
                 echo "✓ $team is healthy"
               else
                 echo "✗ $team not yet healthy"
@@ -63,7 +63,7 @@ jobs:
             done
             
             # Count healthy services
-            healthy_count=$(docker-compose ps | grep -c "healthy")
+            healthy_count=$(docker compose ps | grep -c "healthy")
             if [ "$healthy_count" -ge 5 ]; then
               echo "All services are healthy!"
               break
@@ -75,13 +75,13 @@ jobs:
       - name: Verify service status
         run: |
           echo "=== Service Status ==="
-          docker-compose ps
+          docker compose ps
           echo ""
           
-          healthy_count=$(docker-compose ps | grep -c "healthy")
+          healthy_count=$(docker compose ps | grep -c "healthy")
           if [ "$healthy_count" -lt 5 ]; then
             echo "ERROR: Not all services are healthy"
-            docker-compose logs
+            docker compose logs
             exit 1
           fi
           
@@ -197,25 +197,25 @@ jobs:
         if: failure()
         run: |
           echo "=== Gateway Logs ==="
-          docker-compose logs gateway || true
+          docker compose logs gateway || true
           echo ""
           echo "=== Dashboard Logs ==="
-          docker-compose logs dashboard || true
+          docker compose logs dashboard || true
           echo ""
           echo "=== Team A Logs ==="
-          docker-compose logs team-a || true
+          docker compose logs team-a || true
           echo ""
           echo "=== Team B Logs ==="
-          docker-compose logs team-b || true
+          docker compose logs team-b || true
           echo ""
           echo "=== Team C Logs ==="
-          docker-compose logs team-c || true
+          docker compose logs team-c || true
 
       - name: Clean up
         if: always()
         run: |
           echo "Stopping and removing containers..."
-          docker-compose down || true
+          docker compose down || true
 
       - name: Success summary
         if: success()
