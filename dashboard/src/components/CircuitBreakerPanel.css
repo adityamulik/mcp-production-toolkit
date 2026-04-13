@@ -1,0 +1,242 @@
+.circuit-breaker-panel {
+  background: linear-gradient(135deg, #1e1e2e 0%, #2d2d3d 100%);
+  border: 1px solid #404050;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.circuit-breaker-panel.loading,
+.circuit-breaker-panel.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #999;
+  text-align: center;
+}
+
+.circuit-breaker-panel.error {
+  background: linear-gradient(135deg, #2d1e1e 0%, #3d2d2d 100%);
+  color: #ff6b6b;
+  border-color: #5d3d3d;
+}
+
+.circuit-breaker-panel h2 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.state-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  border-left: 4px solid #4a9eff;
+}
+
+.state-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.state-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.state-icon.closed {
+  color: #51cf66;
+  filter: drop-shadow(0 0 8px rgba(81, 207, 102, 0.5));
+}
+
+.state-icon.open {
+  color: #ff6b6b;
+  filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.5));
+}
+
+.state-icon.half-open {
+  color: #ffd93d;
+  filter: drop-shadow(0 0 8px rgba(255, 217, 61, 0.5));
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.state-info {
+  flex: 1;
+}
+
+.state-label {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.state-label.closed {
+  color: #51cf66;
+}
+
+.state-label.open {
+  color: #ff6b6b;
+}
+
+.state-label.half_open {
+  color: #ffd93d;
+}
+
+.state-description {
+  font-size: 14px;
+  color: #b0b0b0;
+  line-height: 1.4;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #404050;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #505060;
+  transform: translateY(-2px);
+}
+
+.metric-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-detail {
+  font-size: 12px;
+  color: #b0b0b0;
+  line-height: 1.4;
+}
+
+.status-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #404050;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #b0b0b0;
+}
+
+.legend-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.legend-indicator.closed {
+  color: #51cf66;
+}
+
+.legend-indicator.open {
+  color: #ff6b6b;
+}
+
+.legend-indicator.half-open {
+  color: #ffd93d;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .circuit-breaker-panel {
+    padding: 16px;
+  }
+
+  .circuit-breaker-panel h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .state-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .metric-value {
+    font-size: 24px;
+  }
+
+  .state-icon-wrapper {
+    width: 56px;
+    height: 56px;
+  }
+
+  .state-icon {
+    width: 32px;
+    height: 32px;
+  }
+}

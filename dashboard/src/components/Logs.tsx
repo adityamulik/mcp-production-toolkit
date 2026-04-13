@@ -141,7 +141,7 @@ export const Logs: React.FC = () => {
   return (
     <div className="logs-container">
       <div className="logs-header">
-        <h1>Request Logs</h1>
+        <h2>📋 Activity Logs</h2>
         <div className="header-controls">
           <div className="live-status">
             <span className={`status-dot ${isLive ? 'active' : 'inactive'}`}></span>
@@ -158,118 +158,141 @@ export const Logs: React.FC = () => {
         </div>
       </div>
 
-      <div className="filters-section">
-        <h3>Filters</h3>
-        <div className="filter-controls">
-          <label className="filter-checkbox">
-            <input
-              type="checkbox"
-              checked={filters.showBlocked}
-              onChange={(e) =>
-                setFilters({ ...filters, showBlocked: e.target.checked })
-              }
-            />
-            Show Blocked
-          </label>
-          <label className="filter-checkbox">
-            <input
-              type="checkbox"
-              checked={filters.showSuccess}
-              onChange={(e) =>
-                setFilters({ ...filters, showSuccess: e.target.checked })
-              }
-            />
-            Show Success
-          </label>
+      {/* Summary Stats */}
+      <div className="logs-stats-grid">
+        <div className="stat-card total">
+          <div className="stat-icon">📊</div>
+          <div className="stat-content">
+            <div className="stat-value">{logs.length}</div>
+            <div className="stat-label">Total Logs</div>
+          </div>
         </div>
-
-        <div className="filter-dropdowns">
-          <select
-            className="filter-select"
-            value={filters.tool || ''}
-            onChange={(e) =>
-              setFilters({ ...filters, tool: e.target.value || undefined })
-            }
-          >
-            <option value="">All Tools</option>
-            {uniqueTools.map((tool) => (
-              <option key={tool} value={tool}>
-                {tool}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="filter-select"
-            value={filters.user || ''}
-            onChange={(e) =>
-              setFilters({ ...filters, user: e.target.value || undefined })
-            }
-          >
-            <option value="">All Users</option>
-            {uniqueUsers.map((user) => (
-              <option key={user} value={user}>
-                {user}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="filter-select"
-            value={filters.team || ''}
-            onChange={(e) =>
-              setFilters({ ...filters, team: e.target.value || undefined })
-            }
-          >
-            <option value="">All Teams</option>
-            {uniqueTeams.map((team) => (
-              <option key={team} value={team}>
-                {team}
-              </option>
-            ))}
-          </select>
+        <div className="stat-card blocked">
+          <div className="stat-icon">🚫</div>
+          <div className="stat-content">
+            <div className="stat-value">{logs.filter((l) => l.blocked).length}</div>
+            <div className="stat-label">Blocked</div>
+          </div>
+        </div>
+        <div className="stat-card allowed">
+          <div className="stat-icon">✓</div>
+          <div className="stat-content">
+            <div className="stat-value">{logs.filter((l) => !l.blocked).length}</div>
+            <div className="stat-label">Allowed</div>
+          </div>
+        </div>
+        <div className="stat-card duration">
+          <div className="stat-icon">⏱️</div>
+          <div className="stat-content">
+            <div className="stat-value">
+              {logs.length > 0
+                ? Math.round(logs.reduce((sum, l) => sum + l.duration, 0) / logs.length)
+                : 0}
+              <span className="stat-unit">ms</span>
+            </div>
+            <div className="stat-label">Avg Duration</div>
+          </div>
         </div>
       </div>
 
-      <div className="logs-stats">
-        <div className="stat">
-          <span className="stat-label">Total Logs</span>
-          <span className="stat-value">{logs.length}</span>
+      {/* Filters Card */}
+      <div className="filters-card">
+        <div className="filters-header">
+          <h3>Filters</h3>
         </div>
-        <div className="stat">
-          <span className="stat-label">Blocked</span>
-          <span className="stat-value">{logs.filter((l) => l.blocked).length}</span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">Allowed</span>
-          <span className="stat-value">{logs.filter((l) => !l.blocked).length}</span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">Avg Duration</span>
-          <span className="stat-value">
-            {logs.length > 0
-              ? Math.round(logs.reduce((sum, l) => sum + l.duration, 0) / logs.length)
-              : 0}
-            ms
-          </span>
+        
+        <div className="filters-content">
+          {/* Status Toggle Filters */}
+          <div className="filter-group">
+            <label className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={filters.showBlocked}
+                onChange={(e) =>
+                  setFilters({ ...filters, showBlocked: e.target.checked })
+                }
+              />
+              <span className="checkbox-text">Show Blocked</span>
+            </label>
+            <label className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={filters.showSuccess}
+                onChange={(e) =>
+                  setFilters({ ...filters, showSuccess: e.target.checked })
+                }
+              />
+              <span className="checkbox-text">Show Success</span>
+            </label>
+          </div>
+
+          {/* Dropdown Filters */}
+          <div className="filter-group dropdown-group">
+            <select
+              className="filter-select"
+              value={filters.tool || ''}
+              onChange={(e) =>
+                setFilters({ ...filters, tool: e.target.value || undefined })
+              }
+            >
+              <option value="">All Tools</option>
+              {uniqueTools.map((tool) => (
+                <option key={tool} value={tool}>
+                  {tool}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={filters.user || ''}
+              onChange={(e) =>
+                setFilters({ ...filters, user: e.target.value || undefined })
+              }
+            >
+              <option value="">All Users</option>
+              {uniqueUsers.map((user) => (
+                <option key={user} value={user}>
+                  {user}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filter-select"
+              value={filters.team || ''}
+              onChange={(e) =>
+                setFilters({ ...filters, team: e.target.value || undefined })
+              }
+            >
+              <option value="">All Teams</option>
+              {uniqueTeams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="logs-table-wrapper">
-        <table className="logs-table">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>User</th>
-              <th>Tool</th>
-              <th>Team</th>
-              <th>Method</th>
-              <th>Status</th>
-              <th>Duration</th>
-              <th>Result</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
+      {/* Logs Table Card */}
+      <div className="logs-card">
+        <div className="logs-table-wrapper">
+          <table className="logs-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Tool</th>
+                <th>Team</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Result</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
           <tbody>
             {filteredLogs.length > 0 ? (
               filteredLogs.map((log) => (
@@ -309,6 +332,7 @@ export const Logs: React.FC = () => {
           </tbody>
         </table>
       </div>
+        </div>
     </div>
   );
 };

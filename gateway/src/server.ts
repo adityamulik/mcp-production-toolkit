@@ -13,6 +13,7 @@ import {
   getMetrics 
 } from './observability/metrics.js';
 import { eventBroadcaster, SecurityEvent } from './observability/events.js';
+import { metricsDb } from './observability/metrics-db.js';
 import { mcpCircuitBreaker } from './resilience/circuit-breaker.js';
 import { mcpRetryPolicy } from './resilience/retry-policy.js';
 import { 
@@ -84,6 +85,23 @@ app.get('/stats', (req, res) => {
     }
   }
   res.json(eventBroadcaster.getStats());
+});
+
+// Database stats endpoint - gives insight into metrics persistence
+app.get('/stats/db/info', (req, res) => {
+  try {
+    const stats = metricsDb.getDbStats();
+    res.json({
+      status: 'ok',
+      database: stats,
+      message: 'Metrics are persisted in SQLite. Data survives gateway restarts.'
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get database stats',
+      message: (error as any).message
+    });
+  }
 });
 
 // Team configuration endpoint
@@ -407,6 +425,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       const requestId = `${user.email}-${tool}-${Date.now()}`;
       console.log(`📤 Executing MCP request with retry policy`, { requestId, team, tool });
       
+      let retryCount = 0;
       mcpResponse = await mcpRetryPolicy.executeWithStatus(
         requestId,
         async () => {
@@ -423,7 +442,19 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
           };
         },
         (attempt, delay, status) => {
+          retryCount++;
           console.log(`Team ${team} request for ${tool} - attempt ${attempt}, status ${status}, retry in ${delay}ms`);
+          
+          // Log retry attempt as security event
+          const retryEvent: SecurityEvent = {
+            type: 'retried',
+            timestamp: Date.now(),
+            userId: user.email,
+            tool,
+            reason: `Retry attempt ${attempt} (status ${status})`,
+            details: { team, delay, status, currentAttempt: attempt }
+          };
+          eventBroadcaster.logEvent(retryEvent);
         }
       );
       
