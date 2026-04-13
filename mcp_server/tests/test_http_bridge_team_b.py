@@ -1,6 +1,7 @@
 """Tests for Team B HTTP Bridge (Flask app)."""
+import os
 import sys
-sys.path.insert(0, "/home/runner/work/mcp-production-toolkit/mcp-production-toolkit/mcp_server")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir))
 
 import json
 import pytest

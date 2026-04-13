@@ -1,6 +1,7 @@
 """Tests for Team C (Developer) MCP Server tools."""
+import os
 import sys
-sys.path.insert(0, "/home/runner/work/mcp-production-toolkit/mcp-production-toolkit/mcp_server")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir))
 
 from server_team_c import read_file, list_directory, modify_permissions, user_management
 

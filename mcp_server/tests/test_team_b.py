@@ -1,6 +1,7 @@
 """Tests for Team B (DevOps) MCP Server tools."""
+import os
 import sys
-sys.path.insert(0, "/home/runner/work/mcp-production-toolkit/mcp-production-toolkit/mcp_server")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir))
 
 from server_team_b import deploy_application, restart_service, update_configuration
 
