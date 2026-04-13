@@ -14,7 +14,7 @@ import {
 } from './observability/metrics.js';
 import { eventBroadcaster, SecurityEvent } from './observability/events.js';
 import { metricsDb } from './observability/metrics-db.js';
-import { mcpCircuitBreaker } from './resilience/circuit-breaker.js';
+import { mcpCircuitBreaker, getTeamCircuitBreaker } from './resilience/circuit-breaker.js';
 import { mcpRetryPolicy } from './resilience/retry-policy.js';
 import { 
   TEAM_SERVERS, 
@@ -42,9 +42,17 @@ app.get('/metrics', (req, res) => {
 
 // Circuit breaker status endpoint
 app.get('/health/circuit', (req, res) => {
+  const teams = Object.keys(TEAM_SERVERS);
+  const teamMetrics = teams.reduce((acc, team) => {
+    const cb = getTeamCircuitBreaker(team);
+    acc[team] = cb.getMetrics();
+    return acc;
+  }, {} as Record<string, any>);
+  
   res.json({
     status: 'ok',
-    circuitBreaker: mcpCircuitBreaker.getMetrics()
+    circuitBreaker: mcpCircuitBreaker.getMetrics(),
+    teamCircuitBreakers: teamMetrics
   });
 });
 
@@ -358,28 +366,40 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       }
     }
     
-    // 5. CIRCUIT BREAKER CHECK
-    if (!mcpCircuitBreaker.canAttempt()) {
-      const cbState = mcpCircuitBreaker.getState();
+    // 5. DETERMINE TEAM FIRST
+    const team = getTeamForTool(tool);
+    
+    if (!team) {
+      return res.status(404).json({
+        error: `Tool '${tool}' not found in any team server`,
+        availableTeams: Object.keys(TEAM_SERVERS)
+      });
+    }
+
+    // 6. CHECK PER-TEAM CIRCUIT BREAKER
+    const teamCB = getTeamCircuitBreaker(team);
+    if (!teamCB.canAttempt()) {
+      const cbState = teamCB.getState();
       const timestamp = new Date().toISOString();
       
-      console.log(`[${timestamp}] 🔴 Circuit Breaker OPEN - Rejecting Request`, {
+      console.log(`[${timestamp}] 🔴 Circuit Breaker OPEN for Team ${team} - Rejecting Request`, {
         tool,
+        team,
         user: user.email,
         state: cbState.state,
         failureCount: cbState.failureCount,
         timeSinceLastFailure: cbState.lastFailureTime ? (Date.now() - cbState.lastFailureTime) + 'ms' : 'N/A'
       });
       
-      blockedCounter.inc({ reason: 'circuit_breaker_open' });
+      blockedCounter.inc({ reason: 'circuit_breaker_open', team });
       
       const event: SecurityEvent = {
         type: 'blocked',
         timestamp: Date.now(),
         userId: user.email,
         tool,
-        reason: 'Circuit breaker OPEN - MCP service unavailable',
-        details: { circuitState: cbState }
+        reason: `Circuit breaker OPEN for Team ${team}`,
+        details: { team, circuitState: cbState }
       };
       eventBroadcaster.logEvent(event);
       
@@ -391,7 +411,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
         method: 'POST',
         path: `/mcp/tools/${tool}`,
         tool,
-        team: 'N/A',
+        team,
         userId: user.email,
         status: 503,
         duration: Math.round(duration * 1000),
@@ -402,21 +422,12 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       return res.status(503).json({
         blocked: true,
         reason: 'SERVICE_UNAVAILABLE',
-        message: 'MCP service is temporarily unavailable. Please retry later.',
+        message: `MCP service for Team ${team} is temporarily unavailable. Please retry later.`,
         retryAfter: 30
       });
     }
 
-    // 6. DETERMINE TEAM & FORWARD TO TEAM MCP SERVER with retry logic
-    const team = getTeamForTool(tool);
-    
-    if (!team) {
-      return res.status(404).json({
-        error: `Tool '${tool}' not found in any team server`,
-        availableTeams: Object.keys(TEAM_SERVERS)
-      });
-    }
-    
+    // 7. FORWARD TO TEAM MCP SERVER with retry logic
     const teamUrl = getMCPServerUrl(team);
     console.log(`🎯 Routing tool '${tool}' to Team ${team} at ${teamUrl}`);
     
@@ -460,15 +471,15 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       
       if (!mcpResponse.data.ok) {
         console.log(`❌ MCP Response not OK`, { team, tool, status: mcpResponse.status });
-        mcpCircuitBreaker.recordFailure(team);
+        teamCB.recordFailure(team);
         throw new Error(`Team ${team} MCP server returned ${mcpResponse.status}`);
       }
       
       console.log(`✅ MCP Request succeeded`, { team, tool, status: mcpResponse.status });
-      mcpCircuitBreaker.recordSuccess();
+      teamCB.recordSuccess();
     } catch (fetchError: any) {
       console.log(`❌ MCP Request failed after retries`, { team, tool, error: fetchError.message });
-      mcpCircuitBreaker.recordFailure(team);
+      teamCB.recordFailure(team);
       
       const event: SecurityEvent = {
         type: 'blocked',

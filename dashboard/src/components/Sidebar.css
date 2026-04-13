@@ -8,7 +8,7 @@
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 99;
   transition: transform 0.3s ease;
   box-shadow: 1px 0 3px rgba(0, 0, 0, 0.05);
   overflow-y: auto;

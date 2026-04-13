@@ -32,6 +32,8 @@ export const Logs: React.FC = () => {
   });
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isLive, setIsLive] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const LOGS_PER_PAGE = 50;
 
   // Fetch initial logs
   useEffect(() => {
@@ -45,7 +47,7 @@ export const Logs: React.FC = () => {
         }
         
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/logs?limit=100`, {
+        const response = await fetch(`${apiUrl}/logs?limit=500`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -93,7 +95,7 @@ export const Logs: React.FC = () => {
       try {
         const newLog: RequestLog = JSON.parse(event.data);
         console.log('📋 Logs SSE: New log received:', newLog.tool);
-        setLogs((prevLogs) => [newLog, ...prevLogs.slice(0, 99)]);
+        setLogs((prevLogs) => [newLog, ...prevLogs.slice(0, 499)]);
       } catch (error) {
         console.error('Failed to parse log event:', error);
       }
@@ -121,6 +123,17 @@ export const Logs: React.FC = () => {
     if (filters.team && log.team !== filters.team) return false;
     return true;
   });
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredLogs.length / LOGS_PER_PAGE);
+  const startIndex = (currentPage - 1) * LOGS_PER_PAGE;
+  const endIndex = startIndex + LOGS_PER_PAGE;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
 
   const getStatusBadgeClass = (status: number) => {
     if (status === 200) return 'status-success';
@@ -294,8 +307,8 @@ export const Logs: React.FC = () => {
               </tr>
             </thead>
           <tbody>
-            {filteredLogs.length > 0 ? (
-              filteredLogs.map((log) => (
+            {paginatedLogs.length > 0 ? (
+              paginatedLogs.map((log) => (
                 <tr key={log.id} className={log.blocked ? 'log-blocked' : 'log-allowed'}>
                   <td className="timestamp">
                     {new Date(log.timestamp).toLocaleTimeString()}
@@ -325,13 +338,36 @@ export const Logs: React.FC = () => {
             ) : (
               <tr>
                 <td colSpan={9} className="no-logs">
-                  No logs match the current filters
+                  {filteredLogs.length === 0 ? 'No logs match the current filters' : 'Loading...'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {filteredLogs.length > 0 && (
+        <div className="pagination-controls">
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+          >
+            ← Previous
+          </button>
+          <div className="pagination-info">
+            Page {currentPage} of {totalPages} ({filteredLogs.length} total logs)
+          </div>
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next →
+          </button>
+        </div>
+      )}
         </div>
     </div>
   );

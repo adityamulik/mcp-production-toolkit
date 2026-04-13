@@ -106,7 +106,7 @@ const HealthDiscovery: React.FC = () => {
     // Discover available tools
     discoverTools();
 
-    // Refresh every 30 seconds
+    // Refresh every 3 seconds
     const interval = setInterval(() => {
       teams.forEach(team => checkHealth(team));
       discoverTools();
@@ -196,7 +196,7 @@ const HealthDiscovery: React.FC = () => {
 
       <div className="discovery-info">
         <AlertCircle size={16} />
-        <span>Health checks run every 5 seconds</span>
+        <span>Health checks run every 3 seconds</span>
       </div>
     </div>
   );

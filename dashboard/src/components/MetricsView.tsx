@@ -31,7 +31,7 @@ interface SecurityStats {
 export default function MetricsView() {
   const [allMetrics, setAllMetrics] = useState<MetricPoint[]>([]);
   const [timeRange, setTimeRange] = useState<'1s' | '30s' | '1m' | '30m' | '1h' | '12h' | '24h'>('30m');
-  const [cbMetrics, setCbMetrics] = useState<CircuitBreakerMetrics | null>(null);
+  const [teamCBMetrics, setTeamCBMetrics] = useState<Record<string, CircuitBreakerMetrics>>({});
   const [securityStats, setSecurityStats] = useState<SecurityStats>({ blocked: 0, allowed: 0, anomalies: 0, total: 0 });
 
   // Filter metrics based on time range
@@ -68,11 +68,14 @@ export default function MetricsView() {
       .catch(e => console.error('Failed to fetch initial stats:', e));
 
     // Fetch initial circuit breaker metrics
-    fetch(`${apiUrl}/health/circuit`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    fetch(`${apiUrl}/health/circuit`)
       .then(res => res.ok ? res.json() : null)
-      .then(data => data && setCbMetrics(data.circuitBreaker))
+      .then(data => {
+        if (data && data.teamCircuitBreakers) {
+          console.log('📊 Initial team circuit breaker metrics:', data.teamCircuitBreakers);
+          setTeamCBMetrics(data.teamCircuitBreakers);
+        }
+      })
       .catch(e => console.error('Failed to fetch initial circuit breaker metrics:', e));
 
     // Connect to SSE for real-time security stats updates
@@ -139,23 +142,42 @@ export default function MetricsView() {
         console.error('Failed to fetch metrics:', error);
       }
 
-      // Fetch circuit breaker metrics (periodic update)
+      // Fetch circuit breaker metrics 
       try {
-        const cbRes = await fetch(`${apiUrl}/health/circuit`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const cbRes = await fetch(`${apiUrl}/health/circuit`);
         if (cbRes.ok) {
           const cbData = await cbRes.json();
-          setCbMetrics(cbData.circuitBreaker);
+          if (cbData.teamCircuitBreakers) {
+            console.log('🔌 Team circuit breaker update:', cbData.teamCircuitBreakers);
+            setTeamCBMetrics(cbData.teamCircuitBreakers);
+          }
+        } else {
+          console.warn('Circuit breaker endpoint returned:', cbRes.status);
         }
       } catch (e) {
         console.error('Failed to fetch circuit breaker metrics:', e);
       }
     }, 5000); // Update every 5 seconds
 
+    // Faster circuit breaker polling (every 2 seconds)
+    const cbInterval = setInterval(async () => {
+      try {
+        const cbRes = await fetch(`${apiUrl}/health/circuit`);
+        if (cbRes.ok) {
+          const cbData = await cbRes.json();
+          if (cbData.teamCircuitBreakers) {
+            setTeamCBMetrics(cbData.teamCircuitBreakers);
+          }
+        }
+      } catch (e) {
+        // Silently fail for circuit breaker polling
+      }
+    }, 2000);
+
     return () => {
       console.log('📊 Metrics: Stopping polling');
       clearInterval(interval);
+      clearInterval(cbInterval);
       eventSource.close();
     };
   }, []);
@@ -203,6 +225,13 @@ export default function MetricsView() {
             <div className="stat-label">Rate Limited</div>
           </div>
         </div>
+        <div className="quick-stat failures">
+          <div className="stat-icon">💥</div>
+          <div className="stat-content">
+            <div className="stat-value">{Object.values(teamCBMetrics).reduce((sum, m) => sum + (m.failureCount || 0), 0)}</div>
+            <div className="stat-label">CB Failures</div>
+          </div>
+        </div>
       </div>
 
       {/* Request Metrics Chart */}
@@ -222,7 +251,7 @@ export default function MetricsView() {
           </div>
         </div>
         {getFilteredMetrics().length > 0 ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={180}>
             <LineChart data={getFilteredMetrics()}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="time" stroke="#6b7280" style={{fontSize: '12px'}} />
@@ -244,38 +273,40 @@ export default function MetricsView() {
         )}
       </div>
 
-      {/* Circuit Breaker */}
-      {cbMetrics && (
-        <div className="panel-card circuit-breaker-panel">
-          <h3>🔌 Circuit Breaker</h3>
-          <div className={`cb-status-display status-${cbMetrics.state}`}>
+      {/* Team Circuit Breakers */}
+      <div className="circuit-breakers-row">
+        {Object.entries(teamCBMetrics).map(([team, metrics]) => (
+          <div key={team} className="panel-card circuit-breaker-panel">
+          <h3>🔌 Circuit Breaker - Team {team.toUpperCase()}</h3>
+          <div className={`cb-status-display status-${metrics.state}`}>
             <div className="cb-badge">
-              {cbMetrics.state === 'closed' && <CheckCircle className="icon" />}
-              {cbMetrics.state === 'open' && <AlertCircle className="icon" />}
-              {cbMetrics.state === 'half_open' && <Zap className="icon" />}
+              {metrics.state === 'closed' && <CheckCircle className="icon" />}
+              {metrics.state === 'open' && <AlertCircle className="icon" />}
+              {metrics.state === 'half_open' && <Zap className="icon" />}
             </div>
             <div className="cb-details">
-              <div className="cb-state-text">{cbMetrics.state.toUpperCase()}</div>
+              <div className="cb-state-text">{metrics.state.toUpperCase()}</div>
               <div className="cb-metrics-grid">
                 <div className="cb-metric-item">
                   <span className="label">Failures</span>
-                  <span className="value">{cbMetrics.failureCount}</span>
+                  <span className="value">{metrics.failureCount}</span>
                 </div>
                 <div className="cb-metric-item">
                   <span className="label">Recent (60s)</span>
-                  <span className="value">{cbMetrics.recentFailures}</span>
+                  <span className="value">{metrics.recentFailures}</span>
                 </div>
-                {cbMetrics.timeSincLastFailure && (
+                {metrics.timeSincLastFailure && (
                   <div className="cb-metric-item">
                     <span className="label">Last Failure</span>
-                    <span className="value">{(cbMetrics.timeSincLastFailure / 1000).toFixed(1)}s</span>
+                    <span className="value">{(metrics.timeSincLastFailure / 1000).toFixed(1)}s</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
         </div>
-      )}
+      ))}
+      </div>
     </div>
   );
 }

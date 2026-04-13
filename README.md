@@ -1,6 +1,6 @@
-# MCP Production Toolkit
+# 🛡️ MCP Production Toolkit
 
-Production-ready security, reliability, and observability layer for Model Context Protocol servers.
+Enterprise Security, Reliability & Observability for Model Context Protocol
 
 ## 🚀 Quick Start (2 min)
 
@@ -13,6 +13,8 @@ docker-compose ps
 ```
 
 **Login:** See [CREDENTIALS.md](docs/CREDENTIALS.md)
+
+![MCP Production Toolkit Dashboard - Real-time request metrics, security monitoring, circuit breaker status, and team health overview](static/image.png)
 
 ## 📚 Documentation
 
@@ -83,17 +85,3 @@ docker-compose down
 # Helper script
 ./docker-run.sh up|down|logs|test
 ```
-
-## 🆘 Troubleshooting
-
-**Dashboard won't connect?** Check gateway is running: `curl http://localhost:3000/metrics`
-
-**Authentication failing?** Verify `.env.local` has correct credentials from [CREDENTIALS.md](docs/CREDENTIALS.md)
-
-**Port in use?** Change ports in `docker-compose.yml` or kill process: `lsof -i :3000`
-
-More help: [INSTALLATION.md troubleshooting section](docs/INSTALLATION.md#troubleshooting)
-
----
-
-**Status:** Production Ready ✅ | **Version:** 1.0.0 | **Updated:** April 2026
