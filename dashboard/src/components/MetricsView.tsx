@@ -244,7 +244,7 @@ export default function MetricsView() {
           </div>
         </div>
         {getFilteredMetrics().length > 0 ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={180}>
             <LineChart data={getFilteredMetrics()}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="time" stroke="#6b7280" style={{fontSize: '12px'}} />
@@ -267,8 +267,9 @@ export default function MetricsView() {
       </div>
 
       {/* Team Circuit Breakers */}
-      {Object.entries(teamCBMetrics).map(([team, metrics]) => (
-        <div key={team} className="panel-card circuit-breaker-panel">
+      <div className="circuit-breakers-row">
+        {Object.entries(teamCBMetrics).map(([team, metrics]) => (
+          <div key={team} className="panel-card circuit-breaker-panel">
           <h3>🔌 Circuit Breaker - Team {team.toUpperCase()}</h3>
           <div className={`cb-status-display status-${metrics.state}`}>
             <div className="cb-badge">
@@ -298,6 +299,7 @@ export default function MetricsView() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
