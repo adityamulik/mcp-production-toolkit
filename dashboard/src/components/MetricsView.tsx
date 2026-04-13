@@ -31,7 +31,6 @@ interface SecurityStats {
 export default function MetricsView() {
   const [allMetrics, setAllMetrics] = useState<MetricPoint[]>([]);
   const [timeRange, setTimeRange] = useState<'1s' | '30s' | '1m' | '30m' | '1h' | '12h' | '24h'>('30m');
-  const [cbMetrics, setCbMetrics] = useState<CircuitBreakerMetrics | null>(null);
   const [teamCBMetrics, setTeamCBMetrics] = useState<Record<string, CircuitBreakerMetrics>>({});
   const [securityStats, setSecurityStats] = useState<SecurityStats>({ blocked: 0, allowed: 0, anomalies: 0, total: 0 });
 
@@ -75,10 +74,6 @@ export default function MetricsView() {
         if (data && data.teamCircuitBreakers) {
           console.log('📊 Initial team circuit breaker metrics:', data.teamCircuitBreakers);
           setTeamCBMetrics(data.teamCircuitBreakers);
-          // Also set the global one if available
-          if (data.circuitBreaker) {
-            setCbMetrics(data.circuitBreaker);
-          }
         }
       })
       .catch(e => console.error('Failed to fetch initial circuit breaker metrics:', e));
@@ -156,9 +151,6 @@ export default function MetricsView() {
             console.log('🔌 Team circuit breaker update:', cbData.teamCircuitBreakers);
             setTeamCBMetrics(cbData.teamCircuitBreakers);
           }
-          if (cbData.circuitBreaker) {
-            setCbMetrics(cbData.circuitBreaker);
-          }
         } else {
           console.warn('Circuit breaker endpoint returned:', cbRes.status);
         }
@@ -175,9 +167,6 @@ export default function MetricsView() {
           const cbData = await cbRes.json();
           if (cbData.teamCircuitBreakers) {
             setTeamCBMetrics(cbData.teamCircuitBreakers);
-          }
-          if (cbData.circuitBreaker) {
-            setCbMetrics(cbData.circuitBreaker);
           }
         }
       } catch (e) {

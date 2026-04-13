@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Server, BarChart3, Menu, X, FileText } from 'lucide-react';
+import { Server, BarChart3, FileText } from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -8,7 +7,6 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange }) => {
-  const [isOpen, setIsOpen] = useState(true);
 
   const mainMenuItems = [
     { id: 'health', label: 'Dashboard', icon: Server, description: 'Team servers status' },
@@ -18,15 +16,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange }) => {
 
   return (
     <>
-      <button className="sidebar-toggle" onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
-      <aside className={`new-sidebar ${isOpen ? 'open' : 'closed'}`}>
+      <aside className="new-sidebar">
         <div className="sidebar-content">
           {/* Main Navigation */}
           <div className="sidebar-section">
-            <p className="sidebar-section-label">MENU</p>
             <nav className="sidebar-nav">
               {mainMenuItems.map((item) => {
                 const Icon = item.icon;
@@ -36,7 +29,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange }) => {
                     className={`nav-item ${activePage === item.id ? 'active' : ''}`}
                     onClick={() => {
                       onPageChange(item.id as 'health' | 'metrics' | 'logs');
-                      window.innerWidth < 768 && setIsOpen(false);
                     }}
                     title={item.label}
                   >
