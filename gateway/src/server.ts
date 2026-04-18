@@ -92,7 +92,17 @@ app.get('/stats', (req, res) => {
       }
     }
   }
-  res.json(eventBroadcaster.getStats());
+  
+  // Get stats and convert property names to camelCase for dashboard
+  const stats = eventBroadcaster.getStats();
+  res.json({
+    allowed: stats.allowed,
+    blocked: stats.blocked,
+    anomalies: stats.anomalies,
+    retried: stats.retried,
+    rateLimited: stats.rate_limited || 0,
+    total: stats.total
+  });
 });
 
 // Database stats endpoint - gives insight into metrics persistence
@@ -349,8 +359,14 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
     if (anomaly.isAnomaly) {
       anomalyCounter.inc({ type: anomaly.type, severity: anomaly.severity });
       
+      // Determine event type based on anomaly type
+      let eventType: 'anomaly' | 'rate_limited' = 'anomaly';
+      if (anomaly.type === 'rate_limit_exceeded') {
+        eventType = 'rate_limited';
+      }
+      
       const event: SecurityEvent = {
-        type: 'anomaly',
+        type: eventType,
         timestamp: Date.now(),
         userId: user.email,
         tool,

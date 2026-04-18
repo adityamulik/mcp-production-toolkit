@@ -13,6 +13,7 @@ interface AnomalyResult {
 class AnomalyDetector {
   private userRequestCounts = new Map<string, number>();
   private lastRequestTime = new Map<string, number>();
+  private rateLimitedCount = 0;
   private readonly MAX_REQUESTS_PER_MINUTE = 30;
   private readonly MIN_REQUEST_INTERVAL_MS = 100;
 
@@ -47,6 +48,7 @@ class AnomalyDetector {
     }, 60000);
 
     if (count > this.MAX_REQUESTS_PER_MINUTE) {
+      this.rateLimitedCount++;
       return {
         isAnomaly: true,
         type: 'rate_limit_exceeded',
@@ -56,6 +58,16 @@ class AnomalyDetector {
     }
 
     return { isAnomaly: false };
+  }
+
+  public getRateLimitedCount(): number {
+    return this.rateLimitedCount;
+  }
+
+  public resetStats(): void {
+    this.rateLimitedCount = 0;
+    this.userRequestCounts.clear();
+    this.lastRequestTime.clear();
   }
 }
 
