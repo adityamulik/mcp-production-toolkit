@@ -29,6 +29,13 @@ class PolicyEngine {
         operations: ['SELECT', 'GET', 'LIST']
       }
     },
+    analyst: {
+      permissions: {
+        tools: ['generate_report'],
+        resources: ['file://reports/*'],
+        operations: ['GET']
+      }
+    },
     deployer: {
       permissions: {
         tools: ['deploy_application', 'restart_service', 'update_configuration'],
