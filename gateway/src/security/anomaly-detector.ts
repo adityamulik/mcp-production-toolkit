@@ -13,8 +13,8 @@ interface AnomalyResult {
 class AnomalyDetector {
   private userRequestCounts = new Map<string, number>();
   private lastRequestTime = new Map<string, number>();
-  private readonly MAX_REQUESTS_PER_MINUTE = 30;
-  private readonly MIN_REQUEST_INTERVAL_MS = 100;
+  private readonly MAX_REQUESTS_PER_MINUTE = 12000; // 200 TPS = 12,000 req/min
+  private readonly MIN_REQUEST_INTERVAL_MS = 5; // Allow ~200 req/sec
 
   public detectAnomaly(
     userId: string,
