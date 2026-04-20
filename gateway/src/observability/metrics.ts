@@ -1,20 +1,64 @@
 /**
- * Metrics (Mock Implementation)
+ * Metrics (Real Implementation with In-Memory Tracking)
  */
 
+interface MetricValue {
+  [key: string]: number;
+}
+
 class Counter {
+  private values: MetricValue = {};
+  
   constructor(private config: any) {}
-  inc(labels?: any) {}
+  
+  inc(labels?: any) {
+    const key = labels ? JSON.stringify(labels) : 'total';
+    this.values[key] = (this.values[key] || 0) + 1;
+  }
+  
+  getValues() {
+    return this.values;
+  }
 }
 
 class Histogram {
+  private buckets: { [key: string]: number[] } = {};
+  
   constructor(private config: any) {}
-  observe(labels: any, value: number) {}
+  
+  observe(labels: any, value: number) {
+    const key = labels ? JSON.stringify(labels) : 'default';
+    if (!this.buckets[key]) {
+      this.buckets[key] = [];
+    }
+    this.buckets[key].push(value);
+  }
+  
+  getValues() {
+    const result: { [key: string]: { count: number; sum: number; avg: number } } = {};
+    for (const [key, values] of Object.entries(this.buckets)) {
+      result[key] = {
+        count: values.length,
+        sum: values.reduce((a, b) => a + b, 0),
+        avg: values.reduce((a, b) => a + b, 0) / values.length
+      };
+    }
+    return result;
+  }
 }
 
 class Gauge {
+  private value: number = 0;
+  
   constructor(private config: any) {}
-  set(value: number) {}
+  
+  set(value: number) {
+    this.value = value;
+  }
+  
+  getValue() {
+    return this.value;
+  }
 }
 
 export const requestCounter = new Counter({
@@ -98,5 +142,34 @@ export const retryExhausted = new Counter({
 });
 
 export function getMetrics() {
-  return '# Prometheus Metrics\n# Metrics would be served in production\n';
+  let output = '# HELP mcp_gateway_requests_total Total requests processed\n';
+  output += '# TYPE mcp_gateway_requests_total counter\n';
+  
+  // Request counter metrics
+  const requestCounterValues = (requestCounter as any).getValues();
+  for (const [key, value] of Object.entries(requestCounterValues)) {
+    output += `mcp_gateway_requests_total{${key}} ${value as number}\n`;
+  }
+  
+  output += '\n# HELP mcp_gateway_blocked_total Total blocked requests\n';
+  output += '# TYPE mcp_gateway_blocked_total counter\n';
+  
+  // Blocked counter metrics
+  const blockedCounterValues = (blockedCounter as any).getValues();
+  for (const [key, value] of Object.entries(blockedCounterValues)) {
+    output += `mcp_gateway_blocked_total{${key}} ${value as number}\n`;
+  }
+  
+  output += '\n# HELP mcp_gateway_request_duration_seconds Request duration\n';
+  output += '# TYPE mcp_gateway_request_duration_seconds histogram\n';
+  
+  // Duration histogram metrics
+  const durationValues = (requestDuration as any).getValues();
+  for (const [key, stats] of Object.entries(durationValues)) {
+    const statsTyped = stats as any;
+    output += `mcp_gateway_request_duration_seconds_count{${key}} ${statsTyped.count}\n`;
+    output += `mcp_gateway_request_duration_seconds_sum{${key}} ${statsTyped.sum}\n`;
+  }
+  
+  return output;
 }

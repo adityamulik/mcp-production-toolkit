@@ -47,7 +47,7 @@ export const Logs: React.FC = () => {
         }
         
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/logs?limit=500`, {
+        const response = await fetch(`${apiUrl}/logs?limit=2500`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         

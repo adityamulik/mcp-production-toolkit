@@ -121,7 +121,7 @@ export default function MetricsView() {
             success: stats.allowed ?? stats.success ?? 0,
             blocked: stats.blocked ?? 0,
             anomalies: stats.anomalies ?? 0,
-            rateLimited: stats.rateLimited ?? 0,
+            rateLimited: stats.rate_limited ?? 0,
             retried: stats.retried ?? 0
           };
           
