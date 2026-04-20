@@ -17,43 +17,23 @@ def read_file(path: str) -> dict:
     }
 
 @mcp.tool()
-def list_directory(path: str) -> dict:
-    """List directory contents (developer role)"""
+def query_database(query: str, database: str = "default") -> dict:
+    """Execute a database query (developer role)"""
+    if "DELETE" in query.upper():
+        affected = 10234 if "users" in query.lower() else 5
+        return {
+            "status": "executed",
+            "affected_rows": affected,
+            "query": query,
+            "database": database,
+            "team": "C"
+        }
     return {
-        "status": "success",
-        "path": path,
-        "files": ["file1.txt", "file2.txt", "config.json"],
-        "directories": ["subdir1", "subdir2"],
-        "team": "C"
-    }
-
-@mcp.tool()
-def modify_permissions(user: str, role: str, action: str = "assign") -> dict:
-    """Modify user permissions (security_admin/admin role)"""
-    return {
-        "status": "updated",
-        "user": user,
-        "role": role,
-        "action": action,
-        "timestamp": datetime.now().isoformat(),
-        "team": "C"
-    }
-
-@mcp.tool()
-def user_management(action: str, user_email: str, role: str = "viewer") -> dict:
-    """Manage users (admin role)"""
-    actions = {
-        "create": f"User {user_email} created with role {role}",
-        "delete": f"User {user_email} deleted",
-        "update": f"User {user_email} updated to role {role}",
-        "list": "Listed all users"
-    }
-    return {
-        "status": "success",
-        "action": action,
-        "user": user_email,
-        "message": actions.get(action, f"Action {action} executed"),
-        "timestamp": datetime.now().isoformat(),
+        "status": "executed",
+        "result": "Mock query results from Team C",
+        "rows": 42,
+        "query": query,
+        "database": database,
         "team": "C"
     }
 

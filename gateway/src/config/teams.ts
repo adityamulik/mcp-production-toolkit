@@ -29,7 +29,7 @@ export const TEAM_SERVERS: TeamsConfig = {
   'A': {
     port: 8001,
     host: process.env.IN_DOCKER === 'true' ? 'team-a' : 'localhost',
-    tools: ['query_database', 'generate_report', 'audit_logs']
+    tools: ['generate_report']
   },
   // Team B - DevOps (port 8002)
   'B': {
@@ -41,7 +41,7 @@ export const TEAM_SERVERS: TeamsConfig = {
   'C': {
     port: 8003,
     host: process.env.IN_DOCKER === 'true' ? 'team-c' : 'localhost',
-    tools: ['read_file', 'list_directory', 'modify_permissions', 'user_management']
+    tools: ['read_file', 'query_database']
   }
 };
 
