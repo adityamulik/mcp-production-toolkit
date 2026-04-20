@@ -4,12 +4,10 @@ import jwt from 'jsonwebtoken';
 import { setupAuth, authenticateJWT } from './auth/oauth-server.js';
 import { policyEngine } from './policy/engine.js';
 import { promptFilter } from './security/prompt-filter.js';
-import { anomalyDetector } from './security/anomaly-detector.js';
 import { 
   requestCounter, 
   requestDuration, 
   blockedCounter,
-  anomalyCounter,
   getMetrics 
 } from './observability/metrics.js';
 import { eventBroadcaster, SecurityEvent } from './observability/events.js';
@@ -24,6 +22,20 @@ import {
   getTeamConfigForTool
 } from './config/teams.js';
 import { requestLogger, RequestLog } from './observability/request-logger.js';
+
+// Rate limiter configuration - 200 TPS per user
+const RATE_LIMIT_TPS = 200; // transactions per second
+const RATE_LIMIT_WINDOW = 1000; // milliseconds
+const MAX_TOKENS_PER_WINDOW = RATE_LIMIT_TPS; // tokens per 1 second window
+const REQUEST_TIMEOUT_MS = 1000; // Reset bucket every second
+
+interface RateLimitBucket {
+  tokens: number;
+  lastRefill: number;
+  requestsInWindow: number;
+}
+
+const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 const app = express();
 const SECRET = process.env.GATEWAY_JWT_SECRET || process.env.JWT_SECRET || 'dev-secret-key';
@@ -92,7 +104,9 @@ app.get('/stats', (req, res) => {
       }
     }
   }
-  res.json(eventBroadcaster.getStats());
+  const stats = eventBroadcaster.getStats();
+  console.log('[STATS_ENDPOINT] Returning stats:', stats);
+  res.json(stats);
 });
 
 // Database stats endpoint - gives insight into metrics persistence
@@ -226,6 +240,78 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
   const userMessage = req.headers['x-user-message'] as string;
   
   try {
+    // 0. CHECK RATE LIMIT FIRST
+    const userId = user.email || user.userId;
+    const now = Date.now();
+    
+    let bucket = rateLimitBuckets.get(userId);
+    
+    // Initialize bucket or reset if window has expired
+    if (!bucket || (now - bucket.lastRefill) >= REQUEST_TIMEOUT_MS) {
+      bucket = {
+        tokens: MAX_TOKENS_PER_WINDOW,
+        lastRefill: now,
+        requestsInWindow: 0
+      };
+      rateLimitBuckets.set(userId, bucket);
+    }
+    
+    bucket.requestsInWindow++;
+    
+    if (bucket.requestsInWindow > MAX_TOKENS_PER_WINDOW) {
+      // Rate limit exceeded
+      const timestamp = new Date().toISOString();
+      const exceededBy = bucket.requestsInWindow - MAX_TOKENS_PER_WINDOW;
+      const team = getTeamForTool(tool) || 'N/A';
+      console.log(`[${timestamp}] 🚫 RATE_LIMIT: User ${userId} exceeded limit: ${bucket.requestsInWindow}/${MAX_TOKENS_PER_WINDOW} (+${exceededBy}) | Tool: ${tool} | Team: ${team}`);
+      
+      blockedCounter.inc({ reason: 'rate_limit' });
+      
+      const duration = (Date.now() - start) / 1000;
+      
+      // Log security event for rate limit
+      const event: SecurityEvent = {
+        type: 'rate_limited',
+        timestamp: Date.now(),
+        userId: user.email,
+        tool,
+        reason: `Rate limit exceeded: ${bucket.requestsInWindow}/${MAX_TOKENS_PER_WINDOW} requests`,
+        details: { 
+          requestsInWindow: bucket.requestsInWindow,
+          limit: MAX_TOKENS_PER_WINDOW,
+          exceededBy: exceededBy,
+          team: team
+        }
+      };
+      console.log(`[RATE_LIMIT_EVENT] Logging event for tool ${tool} (Team: ${team}):`, event);
+      eventBroadcaster.logEvent(event);
+      console.log(`[RATE_LIMIT_EVENT] Event logged successfully for Team ${team}`);
+      
+      requestLogger.log({
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        method: 'POST',
+        path: `/mcp/tools/${tool}`,
+        tool,
+        team: 'N/A',
+        userId: user.email,
+        status: 429,
+        duration: Math.round(duration * 1000),
+        blocked: true,
+        reason: 'RATE_LIMIT_EXCEEDED'
+      });
+      
+      return res.status(429).json({
+        error: 'Too Many Requests',
+        message: `Rate limit exceeded. Max ${RATE_LIMIT_TPS} requests/second per user.`,
+        retryAfter: 1,
+        currentWindow: {
+          requests: bucket.requestsInWindow,
+          limit: MAX_TOKENS_PER_WINDOW
+        }
+      });
+    }
+    
     // 1. POLICY CHECK
     if (!policyEngine.canAccessTool(user.role, tool)) {
       blockedCounter.inc({ reason: 'rbac_violation' });
@@ -343,30 +429,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       });
     }
     
-    // 4. ANOMALY DETECTION
-    const anomaly = anomalyDetector.detectAnomaly(user.userId, tool, args, user.role);
-    
-    if (anomaly.isAnomaly) {
-      anomalyCounter.inc({ type: anomaly.type, severity: anomaly.severity });
-      
-      const event: SecurityEvent = {
-        type: 'anomaly',
-        timestamp: Date.now(),
-        userId: user.email,
-        tool,
-        severity: anomaly.severity,
-        reason: anomaly.message,
-        details: anomaly
-      };
-      eventBroadcaster.logEvent(event);
-      
-      // Don't block, but log and alert
-      if (anomaly.severity === 'high') {
-        console.warn(`HIGH SEVERITY ANOMALY: ${anomaly.message}`);
-      }
-    }
-    
-    // 5. DETERMINE TEAM FIRST
+    // 4. DETERMINE TEAM FIRST
     const team = getTeamForTool(tool);
     
     if (!team) {
@@ -376,7 +439,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       });
     }
 
-    // 6. CHECK PER-TEAM CIRCUIT BREAKER
+    // 5. CHECK PER-TEAM CIRCUIT BREAKER
     const teamCB = getTeamCircuitBreaker(team);
     if (!teamCB.canAttempt()) {
       const cbState = teamCB.getState();
@@ -427,7 +490,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
       });
     }
 
-    // 7. FORWARD TO TEAM MCP SERVER with retry logic
+    // 6. FORWARD TO TEAM MCP SERVER with retry logic
     const teamUrl = getMCPServerUrl(team);
     console.log(`🎯 Routing tool '${tool}' to Team ${team} at ${teamUrl}`);
     

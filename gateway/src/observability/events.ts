@@ -46,6 +46,9 @@ class EventBroadcaster extends EventEmitter {
     // Persist to database
     try {
       metricsDb.insertEvent(event);
+      if (event.type === 'rate_limited') {
+        console.log('[EVENT_LOG] Persisted rate_limited event to database');
+      }
     } catch (error) {
       console.error('[Events] Failed to persist event to database:', error);
     }

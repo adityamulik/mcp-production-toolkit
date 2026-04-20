@@ -4,18 +4,14 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sys, os
 
-from server_team_c import (
-    read_file, list_directory, modify_permissions, user_management
-)
+from server_team_c import read_file, query_database
 
 app = Flask(__name__)
 CORS(app)
 
 TOOLS = {
     'read_file': read_file,
-    'list_directory': list_directory,
-    'modify_permissions': modify_permissions,
-    'user_management': user_management
+    'query_database': query_database
 }
 
 @app.route('/health', methods=['GET'], strict_slashes=False)

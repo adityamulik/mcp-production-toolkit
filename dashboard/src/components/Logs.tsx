@@ -47,7 +47,7 @@ export const Logs: React.FC = () => {
         }
         
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/logs?limit=500`, {
+        const response = await fetch(`${apiUrl}/logs?limit=2500`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -145,6 +145,15 @@ export const Logs: React.FC = () => {
 
   const getBlockedBadgeClass = (blocked: boolean) => {
     return blocked ? 'badge-blocked' : 'badge-allowed';
+  };
+
+  const getTeamName = (teamId?: string): string => {
+    const teamNames: Record<string, string> = {
+      'A': 'analyst',
+      'B': 'devops',
+      'C': 'developer'
+    };
+    return teamNames[teamId || ''] || teamId || '-';
   };
 
   const uniqueTools = [...new Set(logs.map((log) => log.tool))];
@@ -281,7 +290,7 @@ export const Logs: React.FC = () => {
               <option value="">All Teams</option>
               {uniqueTeams.map((team) => (
                 <option key={team} value={team}>
-                  {team}
+                  {getTeamName(team)}
                 </option>
               ))}
             </select>
@@ -315,7 +324,7 @@ export const Logs: React.FC = () => {
                   </td>
                   <td className="user">{log.userId}</td>
                   <td className="tool">{log.tool}</td>
-                  <td className="team">{log.team || '-'}</td>
+                  <td className="team">{getTeamName(log.team)}</td>
                   <td className="method">{log.method}</td>
                   <td className="status">
                     <span className={`status-badge ${getStatusBadgeClass(log.status)}`}>
