@@ -43,12 +43,12 @@ fi
 
 # Configuration - use env vars from .env.local
 API_URL="${API_URL:-http://localhost:3000}"
-AUTH_EMAIL="${DEVELOPER_EMAIL}"
-AUTH_PASSWORD="${DEVELOPER_PASSWORD}"
+AUTH_EMAIL="${ANALYST_EMAIL}"
+AUTH_PASSWORD="${ANALYST_PASSWORD}"
 
 # Validate credentials are set
 if [ -z "$AUTH_EMAIL" ] || [ -z "$AUTH_PASSWORD" ]; then
-  echo -e "${RED}❌ Error: DEVELOPER_EMAIL and DEVELOPER_PASSWORD must be set in .env.local${NC}"
+  echo -e "${RED}❌ Error: ANALYST_EMAIL and ANALYST_PASSWORD must be set in .env.local${NC}"
   exit 1
 fi
 
@@ -98,6 +98,17 @@ log_cb_state() {
   echo "$DETAILS" | jq -r '.failureCount as $f | .recentFailures as $r | "  └─ Failures: \($f), Recent (60s): \($r)"' 2>/dev/null || true
 }
 
+# Function to call generate_report tool from Team A
+call_generate_report() {
+  local report_type="${1:-daily}"
+  local format="${2:-json}"
+  curl -s -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/generate_report \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"arguments\": {\"report_type\": \"${report_type}\", \"format\": \"${format}\"}}" \
+    2>/dev/null
+}
+
 # Function to get request stats
 get_request_stats() {
   curl -s -X GET ${API_URL}/stats \
@@ -141,10 +152,10 @@ echo -e "${BLUE}📊 Starting aggressive load generator (will continue entire te
       break
     fi
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/generate_report \
       -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
-      -d '{"arguments": {"query": "SELECT * FROM analytics"}}' \
+      -d '{"arguments": {"report_type": "daily", "format": "json"}}' \
       2>/dev/null)
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -284,10 +295,11 @@ echo -e "${YELLOW}Summary:${NC}"
 echo -e "  1. Kill delay: ${KILL_DELAY}s"
 echo -e "  2. Restart delay: ${RESTART_DELAY}s"
 echo -e "  3. Container: $CONTAINER_NAME"
-echo -e "  4. ✅ Circuit Breaker State Transitions Monitored:"
+echo -e "  4. Tool tested: generate_report (Team A analytics)"
+echo -e "  5. ✅ Circuit Breaker State Transitions Monitored:"
 echo -e "     └─ CLOSED → OPEN (failure detection)"
 echo -e "     └─ OPEN → HALF_OPEN (recovery attempt)"
 echo -e "     └─ HALF_OPEN → CLOSED (full recovery)"
-echo -e "  5. Check Dashboard → Metrics page for detailed metrics"
-echo -e "  6. All state changes logged above with timestamps"
+echo -e "  6. Check Dashboard → Metrics page for detailed metrics"
+echo -e "  7. All state changes logged above with timestamps"
 echo ""
