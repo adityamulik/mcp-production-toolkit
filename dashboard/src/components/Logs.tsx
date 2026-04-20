@@ -147,6 +147,15 @@ export const Logs: React.FC = () => {
     return blocked ? 'badge-blocked' : 'badge-allowed';
   };
 
+  const getTeamName = (teamId?: string): string => {
+    const teamNames: Record<string, string> = {
+      'A': 'analyst',
+      'B': 'devops',
+      'C': 'developer'
+    };
+    return teamNames[teamId || ''] || teamId || '-';
+  };
+
   const uniqueTools = [...new Set(logs.map((log) => log.tool))];
   const uniqueUsers = [...new Set(logs.map((log) => log.userId))];
   const uniqueTeams = [...new Set(logs.map((log) => log.team).filter(Boolean))];
@@ -281,7 +290,7 @@ export const Logs: React.FC = () => {
               <option value="">All Teams</option>
               {uniqueTeams.map((team) => (
                 <option key={team} value={team}>
-                  {team}
+                  {getTeamName(team)}
                 </option>
               ))}
             </select>
@@ -315,7 +324,7 @@ export const Logs: React.FC = () => {
                   </td>
                   <td className="user">{log.userId}</td>
                   <td className="tool">{log.tool}</td>
-                  <td className="team">{log.team || '-'}</td>
+                  <td className="team">{getTeamName(log.team)}</td>
                   <td className="method">{log.method}</td>
                   <td className="status">
                     <span className={`status-badge ${getStatusBadgeClass(log.status)}`}>
