@@ -4,17 +4,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sys, os
 
-from server_team_a import (
-    query_database, generate_report, audit_logs
-)
+from server_team_a import generate_report
 
 app = Flask(__name__)
 CORS(app)
 
 TOOLS = {
-    'query_database': query_database,
-    'generate_report': generate_report,
-    'audit_logs': audit_logs
+    'generate_report': generate_report
 }
 
 @app.route('/health', methods=['GET'], strict_slashes=False)
