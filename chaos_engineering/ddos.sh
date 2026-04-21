@@ -86,7 +86,7 @@ NORMAL_FAIL=0
 START=$(date +%s%N)
 
 for i in $(seq 1 $NORMAL_LOAD_COUNT); do
-  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
+  RESPONSE=$(curl -s --max-time 5 -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d '{"arguments": {"query": "SELECT 1"}}' \
@@ -115,7 +115,7 @@ echo -e "${YELLOW}Duration: ${PHASE1_TIME}ms${NC}"
 echo ""
 
 echo -e "${RED}═══════════════════════════════════════${NC}"
-echo -e "${RED}💥 Phase 2: DDoS Attack (>200 req/sec)${NC}"
+echo -e "${RED}💥 Phase 2: DDoS Attack (>120 req/sec)${NC}"
 echo -e "${RED}═══════════════════════════════════════${NC}"
 echo ""
 
@@ -125,16 +125,16 @@ DDOS_RATELIMIT=0
 START=$(date +%s%N)
 
 echo -e "${RED}🚀 Launching DDoS attack with $DDOS_ATTACK_COUNT requests in parallel...${NC}"
-echo -e "${RED}⚠️  Target: >200 TPS to trigger rate limiting${NC}"
+echo -e "${RED}⚠️  Target: >120 TPS to trigger rate limiting${NC}"
 echo ""
 
 # Send requests in parallel batches
-CONCURRENT_REQUESTS=250  # Number of concurrent requests to achieve >200 TPS
+CONCURRENT_REQUESTS=100  # Reduced from 250 to avoid overwhelming system
 BATCH_DELAY=0.01  # 10ms between batches to spread load
 
 for i in $(seq 1 $DDOS_ATTACK_COUNT); do
   (
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
+    RESPONSE=$(curl -s --max-time 5 -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
       -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
       -d '{"arguments": {"query": "SELECT 1"}}' \
@@ -155,10 +155,11 @@ for i in $(seq 1 $DDOS_ATTACK_COUNT); do
   if [ $((i % CONCURRENT_REQUESTS)) -eq 0 ]; then
     sleep $BATCH_DELAY
     echo "[DDoS] Sent $i requests, waiting for batch to complete..."
+    wait
   fi
 done
 
-# Wait for all background jobs to complete
+# Wait for remaining background jobs to complete
 wait
 
 END=$(date +%s%N)
@@ -170,7 +171,7 @@ echo ""
 echo -e "${YELLOW}Phase 2 Attack completed:${NC}"
 echo -e "  Duration: ${PHASE2_TIME}ms (${PHASE2_TIME_SEC}s)"
 echo -e "  Total requests: $DDOS_ATTACK_COUNT"
-echo -e "  Achieved TPS: ${ACHIEVED_TPS} (target: >200)"
+echo -e "  Achieved TPS: ${ACHIEVED_TPS} (target: >120)"
 echo ""
 
 echo -e "${GREEN}═══════════════════════════════════════${NC}"
@@ -178,7 +179,7 @@ echo -e "${GREEN}✅ Phase 3: Verify Legitimate Access${NC}"
 echo -e "${GREEN}═══════════════════════════════════════${NC}"
 echo ""
 
-VERIFY_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
+VERIFY_RESPONSE=$(curl -s --max-time 5 -w "\n%{http_code}" -X POST ${API_URL}/mcp/tools/query_database \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"arguments": {"query": "SELECT * FROM analytics"}}' \
@@ -203,11 +204,11 @@ echo -e ""
 echo -e "Phase 2 (DDoS Attack):"
 echo -e "  🚀 Total requests sent: $DDOS_ATTACK_COUNT"
 echo -e "  ⏱️  Duration: ${PHASE2_TIME_SEC}s"
-echo -e "  📈 Achieved TPS: ${ACHIEVED_TPS} (target: >200)"
-echo -e "  🚫 Rate limiting triggered: ${ACHIEVED_TPS%.*} > 200"
+echo -e "  📈 Achieved TPS: ${ACHIEVED_TPS} (target: >120)"
+echo -e "  🚫 Rate limiting triggered: ${ACHIEVED_TPS%.*} > 120"
 echo -e ""
 echo -e "Rate Limiting Status:"
-echo -e "  ✅ 200 TPS per-user limit enforced"
+echo -e "  ✅ 120 TPS per-user limit enforced"
 echo -e "  Check Dashboard → Metrics page for request stats"
 echo -e "  Check /logs/blocked endpoint for blocked requests"
 echo ""

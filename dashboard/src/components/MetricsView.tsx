@@ -25,6 +25,8 @@ interface SecurityStats {
   blocked: number;
   allowed: number;
   anomalies: number;
+  rate_limited: number;
+  retried: number;
   total: number;
 }
 
@@ -32,7 +34,14 @@ export default function MetricsView() {
   const [allMetrics, setAllMetrics] = useState<MetricPoint[]>([]);
   const [timeRange, setTimeRange] = useState<'1s' | '30s' | '1m' | '30m' | '1h' | '12h' | '24h'>('30m');
   const [teamCBMetrics, setTeamCBMetrics] = useState<Record<string, CircuitBreakerMetrics>>({});
-  const [securityStats, setSecurityStats] = useState<SecurityStats>({ blocked: 0, allowed: 0, anomalies: 0, total: 0 });
+  const [securityStats, setSecurityStats] = useState<SecurityStats>({ 
+    blocked: 0, 
+    allowed: 0, 
+    anomalies: 0, 
+    rate_limited: 0,
+    retried: 0,
+    total: 0 
+  });
 
   // Filter metrics based on time range
   const getFilteredMetrics = () => {
@@ -106,7 +115,9 @@ export default function MetricsView() {
             allowed: stats.allowed ?? prev.allowed,
             blocked: stats.blocked ?? prev.blocked,
             anomalies: stats.anomalies ?? prev.anomalies,
-            total: (stats.allowed ?? 0) + (stats.blocked ?? 0) + (stats.anomalies ?? 0)
+            rate_limited: stats.rate_limited ?? prev.rate_limited,
+            retried: stats.retried ?? prev.retried,
+            total: (stats.allowed ?? 0) + (stats.blocked ?? 0) + (stats.anomalies ?? 0) + (stats.rate_limited ?? 0)
           }));
         }
 
@@ -157,7 +168,7 @@ export default function MetricsView() {
       } catch (e) {
         console.error('Failed to fetch circuit breaker metrics:', e);
       }
-    }, 5000); // Update every 5 seconds
+    }, 2000); // Update every 2 seconds for faster rate-limit visibility
 
     // Faster circuit breaker polling (every 2 seconds)
     const cbInterval = setInterval(async () => {
@@ -214,14 +225,14 @@ export default function MetricsView() {
         <div className="quick-stat retried">
           <div className="stat-icon">↻</div>
           <div className="stat-content">
-            <div className="stat-value">{allMetrics.length > 0 ? allMetrics[allMetrics.length - 1]?.retried || 0 : 0}</div>
+            <div className="stat-value">{securityStats.retried}</div>
             <div className="stat-label">Retried</div>
           </div>
         </div>
         <div className="quick-stat ratelimited">
           <div className="stat-icon">🚫</div>
           <div className="stat-content">
-            <div className="stat-value">{allMetrics.length > 0 ? allMetrics[allMetrics.length - 1]?.rateLimited || 0 : 0}</div>
+            <div className="stat-value">{securityStats.rate_limited}</div>
             <div className="stat-label">Rate Limited</div>
           </div>
         </div>
