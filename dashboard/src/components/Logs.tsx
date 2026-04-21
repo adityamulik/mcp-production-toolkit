@@ -47,7 +47,7 @@ export const Logs: React.FC = () => {
         }
         
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/logs?limit=5000`, {
+        const response = await fetch(`${apiUrl}/logs?limit=10000`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -97,9 +97,9 @@ export const Logs: React.FC = () => {
       try {
         const newLog: RequestLog = JSON.parse(event.data);
         console.log('📋 Logs SSE: New log received:', newLog.tool, '| Status:', newLog.status, '| Blocked:', newLog.blocked);
-        // Keep up to 5000 logs in dashboard state (matching backend buffer)
+        // Keep up to 10000 logs in dashboard state (matching backend buffer)
         setLogs((prevLogs) => {
-          const updated = [newLog, ...prevLogs.slice(0, 4999)];
+          const updated = [newLog, ...prevLogs.slice(0, 9999)];
           const blockedInState = updated.filter(l => l.blocked).length;
           console.log(`📋 Logs SSE: Now in state: ${updated.length} total, ${blockedInState} blocked`);
           return updated;

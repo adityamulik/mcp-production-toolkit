@@ -19,7 +19,7 @@ export interface RequestLog {
 
 class RequestLogger {
   private logs: RequestLog[] = [];
-  private maxLogs = 50000; // Keep last 50000 logs - increased to handle full DDoS test
+  private maxLogs = 10000; // Keep last 10000 logs - increased to handle full DDoS test
   private listeners: ((log: RequestLog) => void)[] = [];
 
   log(logEntry: RequestLog): void {
