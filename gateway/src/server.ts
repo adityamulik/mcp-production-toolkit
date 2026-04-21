@@ -23,8 +23,8 @@ import {
 } from './config/teams.js';
 import { requestLogger, RequestLog } from './observability/request-logger.js';
 
-// Rate limiter configuration - 200 TPS per user
-const RATE_LIMIT_TPS = 200; // transactions per second
+// Rate limiter configuration - 120 TPS per user
+const RATE_LIMIT_TPS = 120; // transactions per second
 const RATE_LIMIT_WINDOW = 1000; // milliseconds
 const MAX_TOKENS_PER_WINDOW = RATE_LIMIT_TPS; // tokens per 1 second window
 const REQUEST_TIMEOUT_MS = 1000; // Reset bucket every second
@@ -104,7 +104,8 @@ app.get('/stats', (req, res) => {
       }
     }
   }
-  const stats = eventBroadcaster.getStats();
+  // Use time-window query (5 min) for faster response instead of scanning entire database
+  const stats = eventBroadcaster.getStatsWindow(300000); // 5 minute window
   console.log('[STATS_ENDPOINT] Returning stats:', stats);
   res.json(stats);
 });
@@ -171,6 +172,8 @@ app.get('/logs', (req, res) => {
   
   const limit = parseInt(req.query.limit as string) || 100;
   const logs = requestLogger.getLogs(limit);
+  const blockedCount = logs.filter(l => l.blocked).length;
+  console.log(`[LOGS_ENDPOINT] Returning ${logs.length} logs (${blockedCount} blocked) with limit=${limit}`);
   res.json({ logs });
 });
 
@@ -199,6 +202,7 @@ app.get('/logs/blocked', authenticateJWT, (req, res) => {
 
 app.get('/logs/stats', authenticateJWT, (req, res) => {
   const stats = requestLogger.getStats();
+  console.log(`[LOGS_STATS_ENDPOINT] Returning stats:`, stats);
   res.json(stats);
 });
 
@@ -293,7 +297,7 @@ app.post('/mcp/tools/:tool', authenticateJWT, async (req, res) => {
         method: 'POST',
         path: `/mcp/tools/${tool}`,
         tool,
-        team: 'N/A',
+        team: team,
         userId: user.email,
         status: 429,
         duration: Math.round(duration * 1000),

@@ -19,7 +19,7 @@ export interface RequestLog {
 
 class RequestLogger {
   private logs: RequestLog[] = [];
-  private maxLogs = 500; // Keep last 500 logs
+  private maxLogs = 50000; // Keep last 50000 logs - increased to handle full DDoS test
   private listeners: ((log: RequestLog) => void)[] = [];
 
   log(logEntry: RequestLog): void {
@@ -27,11 +27,17 @@ class RequestLogger {
     if (this.logs.length > this.maxLogs) {
       this.logs.shift();
     }
+    if (logEntry.blocked) {
+      console.log(`[REQUEST_LOG] Logged blocked request: ${logEntry.tool} (${logEntry.status}) | Reason: ${logEntry.reason}`);
+    }
     this.notifyListeners(logEntry);
   }
 
   getLogs(limit: number = 100): RequestLog[] {
-    return [...this.logs].reverse().slice(0, limit);
+    const reversed = [...this.logs].reverse().slice(0, limit);
+    const blockedInReturned = reversed.filter(l => l.blocked).length;
+    console.log(`[REQUEST_LOG] getLogs(${limit}): Returning ${reversed.length} logs (${blockedInReturned} blocked) | Total in buffer: ${this.logs.length}`);
+    return reversed;
   }
 
   getLogsByUser(userId: string): RequestLog[] {
@@ -72,11 +78,20 @@ class RequestLogger {
       ? this.logs.reduce((sum, l) => sum + l.duration, 0) / total 
       : 0;
 
+    const byReason = this.logs.filter(l => l.blocked).reduce((acc, l) => {
+      const reason = l.reason || 'unknown';
+      acc[reason] = (acc[reason] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    console.log(`[REQUEST_LOG_STATS] Total: ${total}, Blocked: ${blocked}, By Reason:`, byReason);
+
     return {
       totalLogs: total,
       blockedCount: blocked,
       successCount: total - blocked,
-      avgDuration: Math.round(avgDuration)
+      avgDuration: Math.round(avgDuration),
+      byReason
     };
   }
 }
