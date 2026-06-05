@@ -2,6 +2,8 @@
 
 Enterprise Security, Reliability & Observability for Model Context Protocol
 
+## Live Demo (No audio): https://youtu.be/BQLytTMq4iA
+
 ## 🚀 Quick Start (2 min)
 
 ```bash
