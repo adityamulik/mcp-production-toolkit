@@ -2,7 +2,8 @@
 
 Enterprise Security, Reliability & Observability for Model Context Protocol
 
-## Live Demo (No audio): https://youtu.be/BQLytTMq4iA
+## Live Demo:
+[Click Here](https://www.youtube.com/live/mPcla3P5ObA?si=6eUGWCD84Jh-IbMB&t=678)
 
 ## 🚀 Quick Start (2 min)
 
